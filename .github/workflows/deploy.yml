@@ -54,7 +54,7 @@ jobs:
             # ── Backend ───────────────────────────────────────────────────────
             echo "Installing server dependencies..."
             cd server
-            npm ci --omit=dev  # production-only install (faster, uses package-lock)
+            npm install --include=dev
 
             # Compile TypeScript → CommonJS
             npx tsc
