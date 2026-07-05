@@ -65,7 +65,7 @@ export function LoginPage() {
           </a>
 
           <p className="text-[11px] text-muted text-center leading-relaxed">
-            Your data is stored securely and privately in your own account.
+            Access is by invite only. After signing in, your request will be reviewed.
           </p>
         </div>
 

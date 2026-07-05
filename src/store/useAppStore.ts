@@ -207,11 +207,11 @@ export const useAppStore = create<Store>((set, get) => ({
 
   // ── Cloud sync ─────────────────────────────────────────────────────────────
   loadFromRemote: (data) => {
-    const timetable = (data.timetable as TimetableTask[] | undefined);
+    const timetable = data.timetable;
     set({
-      timetable:   timetable && timetable.length > 0 ? timetable : DEFAULT_TIMETABLE,
-      dayRecords:  (data.dayRecords as Record<string, DayRecord> | undefined) ?? {},
-      preferences: { ...DEFAULT_PREFS, ...((data.preferences as Partial<UserPreferences>) ?? {}) },
+      timetable:   timetable == null ? DEFAULT_TIMETABLE : timetable,
+      dayRecords:  data.dayRecords ?? {},
+      preferences: { ...DEFAULT_PREFS, ...(data.preferences ?? {}) },
     });
   },
 

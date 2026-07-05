@@ -18,7 +18,7 @@ router.get('/user-data', async (req: AuthRequest, res: Response) => {
   });
 
   if (!rowRes.rows.length) {
-    return res.json({ timetable: [], dayRecords: {}, preferences: {} });
+    return res.json({ timetable: null, dayRecords: {}, preferences: {} });
   }
   const row = rowRes.rows[0];
   res.json({

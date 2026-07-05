@@ -13,7 +13,7 @@ export interface User {
 }
 
 export interface UserDataPayload {
-  timetable: TimetableTask[];
+  timetable: TimetableTask[] | null;
   dayRecords: Record<string, DayRecord>;
   preferences: UserPreferences;
 }
