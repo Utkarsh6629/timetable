@@ -1,0 +1,56 @@
+name: Deploy to Oracle Cloud
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --include=dev
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Deploy to VM via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            set -e
+
+            cd /home/ubuntu/timetable
+
+            echo "Pulling latest code..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "Installing dependencies..."
+            npm install --include=dev
+
+            echo "Building production bundle..."
+            npm run build
+
+            echo "Copying build output to web root..."
+            sudo cp -r dist/* /var/www/life-planner/
+
+            echo "Reloading Nginx..."
+            sudo systemctl reload nginx
+
+            echo "✅ Deployment complete!"
