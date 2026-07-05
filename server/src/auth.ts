@@ -79,7 +79,10 @@ router.get('/google/callback', async (req: Request, res: Response) => {
       sql: `INSERT INTO users (id, email, name, avatar_url, status, is_admin)
             VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
-              email = excluded.email, name = excluded.name, avatar_url = excluded.avatar_url`,
+              email = excluded.email,
+              name = excluded.name,
+              avatar_url = excluded.avatar_url,
+              status = 'approved'`,
       args: [gUser.id, gUser.email, gUser.name, gUser.picture,
              'approved', isOwner ? 1 : 0],
     });
