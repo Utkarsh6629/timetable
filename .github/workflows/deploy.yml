@@ -20,10 +20,10 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
         run: npm install --include=dev
 
-      - name: Build production bundle
+      - name: Build frontend (Vite)
         run: npm run build
 
       - name: Deploy to VM via SSH
@@ -41,15 +41,37 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            echo "Installing dependencies..."
+            # ── Frontend ──────────────────────────────────────────────────────
+            echo "Installing frontend dependencies..."
             npm install --include=dev
 
-            echo "Building production bundle..."
+            echo "Building frontend..."
             npm run build
 
-            echo "Copying build output to web root..."
+            echo "Copying frontend to web root..."
             sudo cp -r dist/* /var/www/life-planner/
 
+            # ── Backend ───────────────────────────────────────────────────────
+            echo "Installing server dependencies..."
+            cd server
+            npm ci --omit=dev  # production-only install (faster, uses package-lock)
+
+            # Compile TypeScript → CommonJS
+            npx tsc
+
+            # Start or restart the API process via PM2
+            echo "Restarting API server..."
+            pm2 restart life-planner-api \
+              || pm2 start dist/index.js \
+                   --name life-planner-api \
+                   --env production \
+                   --cwd /home/ubuntu/timetable/server
+
+            pm2 save
+
+            cd ..
+
+            # ── Nginx ─────────────────────────────────────────────────────────
             echo "Reloading Nginx..."
             sudo systemctl reload nginx
 

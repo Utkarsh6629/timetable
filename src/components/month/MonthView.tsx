@@ -35,10 +35,10 @@ export function MonthView() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-5 border-b border-base shrink-0">
+      <div className="px-4 py-4 md:px-6 md:py-5 border-b border-base shrink-0">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold gradient-text">Month View</h1>
+            <h1 className="text-xl md:text-2xl font-bold gradient-text">Month View</h1>
             <p className="text-sm text-muted mt-0.5">{format(currentMonth, 'MMMM yyyy')}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -59,7 +59,7 @@ export function MonthView() {
       </div>
 
       {/* Heatmap Legend */}
-      <div className="px-6 py-3 border-b border-base shrink-0 flex items-center gap-4">
+      <div className="px-4 py-2 md:px-6 md:py-3 border-b border-base shrink-0 flex flex-wrap items-center gap-2 md:gap-4">
         <span className="text-xs text-muted font-medium">Completion:</span>
         {[
           { label: '0%', color: '#ef4444' },
@@ -76,12 +76,12 @@ export function MonthView() {
       </div>
 
       {/* Calendar */}
-      <div className="flex-1 overflow-auto px-6 py-4">
+      <div className="flex-1 overflow-auto px-2 py-3 md:px-6 md:py-4 pb-24 md:pb-4">
         {/* Day headers */}
         <div className="grid grid-cols-7 mb-2">
           {DAY_LABELS.map(l => (
-            <div key={l} className="text-center text-xs font-semibold text-muted uppercase tracking-wider py-2">
-              {l}
+            <div key={l} className="text-center text-[10px] md:text-xs font-semibold text-muted uppercase tracking-wider py-1.5 md:py-2">
+              {l.slice(0, 1)}<span className="hidden sm:inline">{l.slice(1)}</span>
             </div>
           ))}
         </div>
@@ -103,7 +103,7 @@ export function MonthView() {
               <div
                 key={idx}
                 className={cn(
-                  'relative rounded-xl p-2 min-h-[90px] cursor-pointer transition-all duration-150 hover:shadow-md hover:scale-[1.02] group',
+                  'relative rounded-lg md:rounded-xl p-1 md:p-2 min-h-[56px] md:min-h-[90px] cursor-pointer transition-all duration-150 hover:shadow-md hover:scale-[1.02] group',
                   isCurrentMonth ? 'card' : 'opacity-30 card',
                   isCurrentDay && 'ring-2 ring-violet-500 ring-offset-1 ring-offset-transparent'
                 )}
@@ -112,7 +112,7 @@ export function MonthView() {
                 {/* Date number */}
                 <div className="flex items-start justify-between mb-1.5">
                   <span className={cn(
-                    'text-sm font-bold w-7 h-7 flex items-center justify-center rounded-lg',
+                    'text-[11px] md:text-sm font-bold w-5 h-5 md:w-7 md:h-7 flex items-center justify-center rounded-md md:rounded-lg',
                     isCurrentDay ? 'bg-violet-600 text-white' : 'text-primary'
                   )}>
                     {format(cell, 'd')}

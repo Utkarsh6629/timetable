@@ -39,6 +39,7 @@
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    touch-action: pan-y;
   }
 
   body {
@@ -166,5 +167,17 @@
   .gradient-text {
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  }
+  /* Hides scrollbar while keeping scroll functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  /* Safe area bottom padding for devices with home indicator */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }

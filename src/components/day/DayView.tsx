@@ -32,10 +32,10 @@ export function DayView({ dateKey }: Props) {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-5 border-b border-base shrink-0">
+      <div className="px-4 py-4 md:px-6 md:py-5 border-b border-base shrink-0">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold gradient-text">
+            <h1 className="text-xl md:text-2xl font-bold gradient-text">
               {isToday(currentDate) ? 'Today' : format(currentDate, 'EEEE')}
             </h1>
             <p className="text-sm text-muted mt-0.5">{format(currentDate, 'MMMM d, yyyy')}</p>
@@ -72,7 +72,7 @@ export function DayView({ dateKey }: Props) {
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-5 space-y-6 pb-24 md:pb-6">
         {/* Timeline — only show for today */}
         {isToday(currentDate) && (
           <TimelineHeader tasks={tasks} dateStr={dateStr} />
