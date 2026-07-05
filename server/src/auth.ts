@@ -81,7 +81,7 @@ router.get('/google/callback', async (req: Request, res: Response) => {
             ON CONFLICT(id) DO UPDATE SET
               email = excluded.email, name = excluded.name, avatar_url = excluded.avatar_url`,
       args: [gUser.id, gUser.email, gUser.name, gUser.picture,
-             isOwner ? 'approved' : 'pending', isOwner ? 1 : 0],
+             'approved', isOwner ? 1 : 0],
     });
 
     // Always ensure owner is approved + admin

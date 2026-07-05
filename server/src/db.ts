@@ -21,7 +21,7 @@ export async function initDb(): Promise<void> {
       email      TEXT    UNIQUE NOT NULL,
       name       TEXT,
       avatar_url TEXT,
-      status     TEXT    NOT NULL DEFAULT 'pending',
+      status     TEXT    NOT NULL DEFAULT 'approved',
       is_admin   INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
     );
@@ -33,6 +33,8 @@ export async function initDb(): Promise<void> {
       preferences TEXT NOT NULL DEFAULT '{}',
       updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
     );
+
+    UPDATE users SET status = 'approved' WHERE status = 'pending';
   `);
   console.log(`[db] SQLite ready → ${DB_PATH}`);
 }
