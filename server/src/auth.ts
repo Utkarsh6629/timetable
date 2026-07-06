@@ -23,17 +23,24 @@ interface GoogleUserInfo {
   id: string; email: string; name: string; picture: string;
 }
 
+// Custom URL scheme for native Android deep-link redirect
+const MOBILE_SCHEME = 'com.utkarsh.lifeplanner';
+
 // ── GET /auth/google ──────────────────────────────────────────────────────────
-router.get('/google', (_req: Request, res: Response) => {
-  const state = crypto.randomBytes(16).toString('hex');
-  res.cookie('oauth_state', state, { ...COOKIE_OPTS, maxAge: 10 * 60 * 1000 });
+// Pass ?mobile=1 from the native app to trigger deep-link redirect after auth.
+router.get('/google', (req: Request, res: Response) => {
+  const isMobile = req.query.mobile === '1';
+  const statePayload = crypto.randomBytes(16).toString('hex');
+  // Encode platform flag into the state cookie (state token | platform)
+  const stateCookie = isMobile ? `${statePayload}|mobile` : statePayload;
+  res.cookie('oauth_state', stateCookie, { ...COOKIE_OPTS, maxAge: 10 * 60 * 1000 });
 
   const params = new URLSearchParams({
     client_id:     GOOGLE_CLIENT_ID,
     redirect_uri:  CALLBACK_URL,
     response_type: 'code',
     scope:         'openid email profile',
-    state,
+    state:         statePayload,  // only the token part goes to Google
     access_type:   'online',
     prompt:        'select_account',
   });
@@ -45,9 +52,14 @@ router.get('/google/callback', async (req: Request, res: Response) => {
   const { code, state, error } = req.query as Record<string, string | undefined>;
   const savedState = req.cookies?.oauth_state as string | undefined;
 
-  if (error || !code || !state || state !== savedState) {
+  // Decode platform flag from cookie ("<token>|mobile" or just "<token>")
+  const [savedToken, platform] = (savedState ?? '').split('|');
+  const isMobile = platform === 'mobile';
+  const redirectBase = isMobile ? `${MOBILE_SCHEME}://` : FRONTEND_URL;
+
+  if (error || !code || !state || state !== savedToken) {
     console.warn('[auth] OAuth failed:', error ?? 'state mismatch');
-    return res.redirect(`${FRONTEND_URL}?error=auth_failed`);
+    return res.redirect(`${redirectBase}?error=auth_failed`);
   }
   res.clearCookie('oauth_state');
 
@@ -94,7 +106,7 @@ router.get('/google/callback', async (req: Request, res: Response) => {
 
     const result = await db.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [gUser.id] });
     const user = result.rows[0];
-    if (!user) return res.redirect(`${FRONTEND_URL}?error=server_error`);
+    if (!user) return res.redirect(`${redirectBase}?error=server_error`);
 
     // Issue JWT
     const token = jwt.sign(
@@ -102,12 +114,19 @@ router.get('/google/callback', async (req: Request, res: Response) => {
       JWT_SECRET,
       { expiresIn: '30d' }
     );
-    res.cookie('lp_session', token, { ...COOKIE_OPTS, maxAge: 30 * 24 * 60 * 60 * 1000 });
-    console.log(`[auth] Signed in: ${user.email} (${user.status})`);
-    res.redirect(FRONTEND_URL);
+
+    // For native (mobile) clients: set the cookie with lax sameSite so the
+    // redirect to the custom scheme still carries the cookie back to the app's
+    // WebView (both share the same cookie jar in Capacitor).
+    const cookieOpts = isMobile
+      ? { ...COOKIE_OPTS, sameSite: 'none' as const, secure: true }
+      : { ...COOKIE_OPTS, maxAge: 30 * 24 * 60 * 60 * 1000 };
+    res.cookie('lp_session', token, { ...cookieOpts, maxAge: 30 * 24 * 60 * 60 * 1000 });
+    console.log(`[auth] Signed in: ${user.email} (${user.status}) platform=${isMobile ? 'mobile' : 'web'}`);
+    res.redirect(redirectBase);
   } catch (err) {
     console.error('[auth] Callback error:', err);
-    res.redirect(`${FRONTEND_URL}?error=server_error`);
+    res.redirect(`${redirectBase}?error=server_error`);
   }
 });
 

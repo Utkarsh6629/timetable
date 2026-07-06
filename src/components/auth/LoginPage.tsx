@@ -1,4 +1,5 @@
 import { useSearchParams } from 'react-router-dom';
+import { useCapacitorAuth } from '../../hooks/useCapacitorAuth';
 
 // Inline Google SVG logo
 function GoogleIcon() {
@@ -15,6 +16,7 @@ function GoogleIcon() {
 export function LoginPage() {
   const [params] = useSearchParams();
   const error = params.get('error');
+  const { startGoogleLogin } = useCapacitorAuth();
 
   return (
     <div className="min-h-screen bg-primary-surface flex items-center justify-center p-4 relative overflow-hidden">
@@ -49,11 +51,14 @@ export function LoginPage() {
             </div>
           )}
 
-          {/* Google sign-in */}
-          <a
-            href="/auth/google"
+          {/* Google sign-in
+              On Android (Capacitor): opens Chrome Custom Tab via useCapacitorAuth
+              On web: navigates normally to /auth/google */}
+          <button
+            onClick={startGoogleLogin}
             id="google-signin-btn"
-            className="flex items-center justify-center gap-3 w-full rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-150 hover:shadow-md active:scale-95 border"
+            type="button"
+            className="flex items-center justify-center gap-3 w-full rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-150 hover:shadow-md active:scale-95 border cursor-pointer"
             style={{
               backgroundColor: 'rgb(var(--bg-secondary))',
               borderColor:     'rgb(var(--border))',
@@ -62,7 +67,7 @@ export function LoginPage() {
           >
             <GoogleIcon />
             Continue with Google
-          </a>
+          </button>
 
           <p className="text-[11px] text-muted text-center leading-relaxed">
             Access is by invite only. After signing in, your request will be reviewed.
