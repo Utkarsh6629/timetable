@@ -31,15 +31,28 @@ export interface AdminUser {
 /** Key used to store the JWT on native Android (no shared cookie jar). */
 export const NATIVE_TOKEN_KEY = 'lp_native_token';
 
-async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
-  // On native Android the JWT is stored in localStorage (cookies aren't shared
-  // between Chrome Custom Tab and the Capacitor WebView).
+/**
+ * On native Android, Capacitor loads files from file:// so relative fetch()
+ * calls resolve to capacitor://localhost/... which doesn't exist.
+ * We prefix all paths with the production server URL when running natively.
+ * On web (dev + production), we keep '' so Vite proxy / Nginx handles routing.
+ */
+const isNative = (): boolean => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return !!(window as any).Capacitor?.isNativePlatform?.();
+  } catch { return false; }
+};
+const API_BASE = isNative() ? 'https://utkarsh-planner.duckdns.org' : '';
+
+async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  // On native: read stored JWT and send as Bearer header.
   const nativeToken = localStorage.getItem(NATIVE_TOKEN_KEY);
   const authHeader: HeadersInit = nativeToken
     ? { Authorization: `Bearer ${nativeToken}` }
     : {};
 
-  return fetch(input, {
+  return fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     ...init,
     headers: { ...authHeader, ...(init?.headers ?? {}) },
