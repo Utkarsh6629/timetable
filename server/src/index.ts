@@ -12,10 +12,25 @@ const PORT = parseInt(process.env.PORT ?? '3001', 10);
 const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5174';
 
 // ── Middleware ────────────────────────────────────────────────────────────────
+// Capacitor Android WebView sends requests from 'capacitor://localhost' (or
+// 'http://localhost' on some devices), which is different from FRONTEND_URL.
+// We must allowlist both so API calls from the APK aren't CORS-blocked.
+const ALLOWED_ORIGINS = new Set([
+  FRONTEND_URL,
+  'capacitor://localhost',  // Capacitor Android (v3+)
+  'http://localhost',       // Capacitor Android fallback / iOS simulator
+  'https://localhost',      // Capacitor iOS
+]);
+
 app.use(cors({
-  origin:      FRONTEND_URL,
+  origin: (origin, cb) => {
+    // Allow requests with no origin (curl, Postman, same-origin server calls)
+    if (!origin || ALLOWED_ORIGINS.has(origin)) return cb(null, true);
+    cb(new Error(`CORS: origin '${origin}' not allowed`));
+  },
   credentials: true,  // required for cookies
 }));
+
 app.use(express.json({ limit: '4mb' }));
 app.use(cookieParser());
 
