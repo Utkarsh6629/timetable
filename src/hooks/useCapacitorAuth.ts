@@ -5,20 +5,29 @@
  * plugin). Google blocks OAuth in embedded WebViews since 2021, so on native
  * platforms we open the auth URL in a Chrome Custom Tab, which is allowed.
  *
+ * Why localStorage instead of cookies?
+ * Chrome Custom Tabs and Android WebViews use SEPARATE cookie jars. A cookie
+ * set during the OAuth flow in the Chrome Custom Tab is NOT available in the
+ * Capacitor WebView. Instead, the server embeds the JWT in the deep-link URL:
+ *   com.utkarsh.lifeplanner://auth#token=<JWT>
+ * The app extracts it, stores it in localStorage, and sends it as a Bearer
+ * header on every API request (see api.ts: NATIVE_TOKEN_KEY).
+ *
  * Flow:
  *  1. App opens Chrome Custom Tab → https://server/auth/google?mobile=1
- *  2. Server encodes "mobile" flag in the state cookie
- *  3. After Google auth, server redirects to com.utkarsh.lifeplanner://
- *  4. Android routes that custom scheme to the app (via AndroidManifest intent-filter)
- *  5. Capacitor fires appUrlOpen → we close the browser tab + refresh auth state
+ *  2. User signs in with Google
+ *  3. Server redirects → com.utkarsh.lifeplanner://auth#token=<JWT>
+ *  4. Android routes the custom scheme to the app (AndroidManifest intent-filter)
+ *  5. Capacitor fires appUrlOpen → we extract token → store → close browser → init()
  *
- * On web (desktop / PWA) we fall back to the normal navigation — no change.
+ * On web (desktop / PWA): normal navigation, cookie-based auth — no change.
  */
 
 import { useCallback, useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
+import { NATIVE_TOKEN_KEY } from '../lib/api';
 
-// Detect if we are running inside a Capacitor-wrapped native app
+// Detect Capacitor native platform
 const isNative = (): boolean => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,7 +37,7 @@ const isNative = (): boolean => {
   }
 };
 
-// Auth URL — absolute for native (calls live server), relative for web (uses Vite proxy)
+// Auth URL — absolute with ?mobile=1 flag for native, relative for web (Vite proxy)
 const AUTH_URL = isNative()
   ? 'https://utkarsh-planner.duckdns.org/auth/google?mobile=1'
   : '/auth/google';
@@ -46,12 +55,28 @@ export function useCapacitorAuth() {
       const { App }     = await import('@capacitor/app');
       const { Browser } = await import('@capacitor/browser');
 
-      // When the OS routes com.utkarsh.lifeplanner:// back to our app,
-      // close the Chrome Custom Tab and refresh the auth state.
       const handle = await App.addListener('appUrlOpen', async (event) => {
         console.log('[auth] Deep link received:', event.url);
+
+        // Extract JWT from URL fragment: com.utkarsh.lifeplanner://auth#token=<JWT>
+        try {
+          const hash = event.url.split('#')[1] ?? '';
+          const params = new URLSearchParams(hash);
+          const token = params.get('token');
+
+          if (token) {
+            // Store token in localStorage — apiFetch will pick it up automatically
+            localStorage.setItem(NATIVE_TOKEN_KEY, decodeURIComponent(token));
+            console.log('[auth] Native token stored');
+          } else {
+            console.warn('[auth] Deep link had no token:', event.url);
+          }
+        } catch (e) {
+          console.error('[auth] Failed to parse deep link token:', e);
+        }
+
         await Browser.close();
-        // Re-check auth — the server set lp_session cookie before redirecting
+        // Refresh auth state — apiFetch now has the Bearer token
         await init();
       });
 

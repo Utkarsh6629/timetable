@@ -115,14 +115,17 @@ router.get('/google/callback', async (req: Request, res: Response) => {
       { expiresIn: '30d' }
     );
 
-    // For native (mobile) clients: set the cookie with lax sameSite so the
-    // redirect to the custom scheme still carries the cookie back to the app's
-    // WebView (both share the same cookie jar in Capacitor).
-    const cookieOpts = isMobile
-      ? { ...COOKIE_OPTS, sameSite: 'none' as const, secure: true }
-      : { ...COOKIE_OPTS, maxAge: 30 * 24 * 60 * 60 * 1000 };
-    res.cookie('lp_session', token, { ...cookieOpts, maxAge: 30 * 24 * 60 * 60 * 1000 });
-    console.log(`[auth] Signed in: ${user.email} (${user.status}) platform=${isMobile ? 'mobile' : 'web'}`);
+    // For native (mobile) clients: embed the JWT in the deep-link URL so the
+    // Capacitor WebView can store it locally (Chrome Custom Tab and WebView
+    // use separate cookie jars on Android — cookies don't transfer).
+    // For web: set a normal httpOnly cookie.
+    if (isMobile) {
+      // Redirect to custom scheme with token in the URL fragment
+      // Fragment (#) is never sent to the server, keeping the token client-side only
+      return res.redirect(`${MOBILE_SCHEME}://auth#token=${encodeURIComponent(token)}`);
+    }
+    res.cookie('lp_session', token, { ...COOKIE_OPTS, maxAge: 30 * 24 * 60 * 60 * 1000 });
+    console.log(`[auth] Signed in: ${user.email} (${user.status}) platform=web`);
     res.redirect(redirectBase);
   } catch (err) {
     console.error('[auth] Callback error:', err);
@@ -132,7 +135,10 @@ router.get('/google/callback', async (req: Request, res: Response) => {
 
 // ── GET /auth/me ──────────────────────────────────────────────────────────────
 router.get('/me', async (req: Request, res: Response) => {
-  const token: string | undefined = req.cookies?.lp_session;
+  // Accept cookie (web) or Bearer header (native Android)
+  const cookie = req.cookies?.lp_session as string | undefined;
+  const bearer = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '') || undefined;
+  const token  = cookie ?? bearer;
   if (!token) return res.status(401).json({ error: 'Not authenticated' });
 
   try {

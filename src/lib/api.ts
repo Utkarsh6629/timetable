@@ -28,9 +28,24 @@ export interface AdminUser {
   createdAt: number; // unix seconds
 }
 
+/** Key used to store the JWT on native Android (no shared cookie jar). */
+export const NATIVE_TOKEN_KEY = 'lp_native_token';
+
 async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
-  return fetch(input, { credentials: 'include', ...init });
+  // On native Android the JWT is stored in localStorage (cookies aren't shared
+  // between Chrome Custom Tab and the Capacitor WebView).
+  const nativeToken = localStorage.getItem(NATIVE_TOKEN_KEY);
+  const authHeader: HeadersInit = nativeToken
+    ? { Authorization: `Bearer ${nativeToken}` }
+    : {};
+
+  return fetch(input, {
+    credentials: 'include',
+    ...init,
+    headers: { ...authHeader, ...(init?.headers ?? {}) },
+  });
 }
+
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 

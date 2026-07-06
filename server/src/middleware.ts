@@ -17,11 +17,19 @@ export interface AuthRequest extends Request {
 }
 
 /**
- * Verifies the lp_session httpOnly cookie and populates req.userId / req.isAdmin.
- * Returns 401 if missing or invalid.
+ * Verifies the lp_session httpOnly cookie OR an Authorization: Bearer header
+ * and populates req.userId / req.isAdmin.
+ *
+ * Native Android clients (Capacitor) cannot share cookies between Chrome Custom
+ * Tabs and the WebView, so they send the JWT as a Bearer token instead.
+ * Returns 401 if both are missing or invalid.
  */
 export function requireAuth(req: AuthRequest, res: Response, next: NextFunction): void {
-  const token: string | undefined = req.cookies?.lp_session;
+  // Prefer cookie (web), fall back to Bearer header (native Android)
+  const cookie = req.cookies?.lp_session as string | undefined;
+  const bearer = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '') || undefined;
+  const token  = cookie ?? bearer;
+
   if (!token) {
     res.status(401).json({ error: 'Not authenticated' });
     return;
@@ -36,6 +44,7 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
     res.status(401).json({ error: 'Invalid or expired session' });
   }
 }
+
 
 /**
  * Must run after requireAuth.
