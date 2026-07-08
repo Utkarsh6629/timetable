@@ -165,4 +165,34 @@ router.post('/logout', (_req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
+// ── GET /auth/bypass (Development only) ───────────────────────────────────────
+if (process.env.NODE_ENV !== 'production') {
+  router.get('/bypass', async (req: Request, res: Response) => {
+    const mockUser = {
+      id: 'mock-user-123',
+      email: 'mockuser@example.com',
+      name: 'Developer Mode User',
+      avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150',
+      status: 'approved',
+      is_admin: 1
+    };
+
+    await db.execute({
+      sql: `INSERT INTO users (id, email, name, avatar_url, status, is_admin)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET status = 'approved', is_admin = 1`,
+      args: [mockUser.id, mockUser.email, mockUser.name, mockUser.avatar_url, mockUser.status, mockUser.is_admin],
+    });
+
+    const token = jwt.sign(
+      { sub: mockUser.id, email: mockUser.email, admin: true },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.cookie('lp_session', token, { ...COOKIE_OPTS, maxAge: 30 * 24 * 60 * 60 * 1000 });
+    res.redirect('http://localhost:5173');
+  });
+}
+
 export default router;

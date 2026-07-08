@@ -18,6 +18,11 @@ export interface UserDataPayload {
   preferences: UserPreferences;
 }
 
+export interface UpdateUserDataPayload {
+  timetable?: TimetableTask[] | null;
+  preferences?: UserPreferences;
+}
+
 export interface AdminUser {
   id: string;
   email: string;
@@ -91,12 +96,21 @@ export async function getUserData(): Promise<UserDataPayload | null> {
   }
 }
 
-/** Upserts the full state blob. Debounced by the caller. */
-export async function putUserData(data: UserDataPayload): Promise<void> {
+/** Upserts user settings (timetable and preferences). Debounced by the caller. */
+export async function putUserData(data: UpdateUserDataPayload): Promise<void> {
   await apiFetch('/api/user-data', {
     method:  'PUT',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify(data),
+  });
+}
+
+/** Upserts a single day record. */
+export async function putDayRecord(date: string, record: DayRecord): Promise<void> {
+  await apiFetch('/api/user-data/day-record', {
+    method:  'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ date, record }),
   });
 }
 
