@@ -100,7 +100,10 @@ export function TimetablePage() {
     document.addEventListener('mouseup', onUp);
   };
 
-  const handleSaveTask = (tasks: TimetableTask[]) => {
+  const handleSaveTask = (tasks: TimetableTask[], deleteIds?: string[]) => {
+    if (deleteIds) {
+      deleteIds.forEach(id => deleteTask(id));
+    }
     tasks.forEach(task => {
       if (timetable.find(t => t.id === task.id)) {
         updateTask(task);

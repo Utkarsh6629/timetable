@@ -2,25 +2,40 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import type { TimetableTask } from '../../types';
 import { generateId, TASK_COLORS, FULL_DAY_NAMES, formatHour, cn } from '../../lib/utils';
+import { useAppStore } from '../../store/useAppStore';
 
 interface Props {
   task: Partial<TimetableTask>;
-  onSave: (tasks: TimetableTask[]) => void;
+  onSave: (tasks: TimetableTask[], deleteIds?: string[]) => void;
   onClose: () => void;
   dayStartHour: number;
   dayEndHour: number;
 }
-
 export function TaskDialog({ task, onSave, onClose, dayStartHour, dayEndHour }: Props) {
+  const timetable = useAppStore(s => s.timetable);
+
+  // Find matching tasks in the timetable (tasks that belong to the same weekday/recurring series)
+  const matchingTasks = task.id
+    ? timetable.filter(t =>
+        t.title === task.title &&
+        (t.description || undefined) === (task.description || undefined) &&
+        t.startHour === task.startHour &&
+        t.endHour === task.endHour &&
+        t.color === task.color &&
+        t.recurring === task.recurring
+      )
+    : [];
+
   const [title, setTitle] = useState(task.title ?? '');
   const [color, setColor] = useState(task.color ?? TASK_COLORS[0]);
   const [description, setDescription] = useState(task.description ?? '');
-  // Multi-select: initialise with the task's day, or Monday as default
-  const [selectedDays, setSelectedDays] = useState<number[]>(
-    task.id !== undefined
-      ? [task.dayOfWeek ?? 1]   // editing: lock to its day (can still change)
-      : [task.dayOfWeek ?? 1]
-  );
+  // Multi-select: initialise with the matching tasks' days, or the task's day, or Monday as default
+  const [selectedDays, setSelectedDays] = useState<number[]>(() => {
+    if (task.id !== undefined && matchingTasks.length > 0) {
+      return matchingTasks.map(t => t.dayOfWeek);
+    }
+    return [task.dayOfWeek ?? 1];
+  });
   const [startHour, setStartHour] = useState(task.startHour ?? 9);
   const [endHour, setEndHour] = useState(task.endHour ?? 10);
   const [recurring, setRecurring] = useState(task.recurring ?? true);
@@ -53,29 +68,52 @@ export function TaskDialog({ task, onSave, onClose, dayStartHour, dayEndHour }: 
       }));
       onSave(tasks);
     } else {
-      // Editing: update the original task, preserving its id
-      const updated: TimetableTask = {
-        id: task.id!,
-        title: title.trim(),
-        color,
-        description: description.trim() || undefined,
-        dayOfWeek: selectedDays[0],
-        startHour,
-        endHour: clampedEnd,
-        recurring,
-      };
-      // If additional days were selected, create new tasks for them
-      const extras: TimetableTask[] = selectedDays.slice(1).map(day => ({
-        id: generateId(),
-        title: title.trim(),
-        color,
-        description: description.trim() || undefined,
-        dayOfWeek: day,
-        startHour,
-        endHour: clampedEnd,
-        recurring,
-      }));
-      onSave([updated, ...extras]);
+      // Editing: update the original tasks, preserving their ids, and handle new/removed days
+      const tasksToSave: TimetableTask[] = [];
+      const deleteIds: string[] = [];
+
+      // Map matchingTasks by dayOfWeek for easy lookup
+      const matchingByDay = new Map<number, TimetableTask>();
+      matchingTasks.forEach(t => {
+        matchingByDay.set(t.dayOfWeek, t);
+      });
+
+      // 1. For each selected day, either update existing matching task or create a new one
+      selectedDays.forEach(day => {
+        const existingTask = matchingByDay.get(day);
+        if (existingTask) {
+          tasksToSave.push({
+            id: existingTask.id,
+            title: title.trim(),
+            color,
+            description: description.trim() || undefined,
+            dayOfWeek: day,
+            startHour,
+            endHour: clampedEnd,
+            recurring,
+          });
+        } else {
+          tasksToSave.push({
+            id: generateId(),
+            title: title.trim(),
+            color,
+            description: description.trim() || undefined,
+            dayOfWeek: day,
+            startHour,
+            endHour: clampedEnd,
+            recurring,
+          });
+        }
+      });
+
+      // 2. Identify which matching tasks are no longer in selectedDays, and delete them
+      matchingTasks.forEach(t => {
+        if (!selectedDays.includes(t.dayOfWeek)) {
+          deleteIds.push(t.id);
+        }
+      });
+
+      onSave(tasksToSave, deleteIds);
     }
   };
 
