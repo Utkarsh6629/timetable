@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { CalendarDays, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Sun, Moon, LogOut, Shield, Bell, BellOff, AlarmClock } from 'lucide-react';
+import { CalendarDays, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Sun, Moon, LogOut, Shield, Bell, BellOff, AlarmClock, RefreshCw } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useUpdateStore } from '../../store/useUpdateStore';
 import { cn } from '../../lib/utils';
 import { AdminPanel } from '../admin/AdminPanel';
 
@@ -15,6 +16,7 @@ const NAV = [
 export function Sidebar() {
   const { preferences, setTheme, setSidebarCollapsed } = useAppStore();
   const { user, signOut } = useAuthStore();
+  const { updateInfo, isChecking, checkForUpdates } = useUpdateStore();
   const collapsed = preferences.sidebarCollapsed;
   const [showAdmin, setShowAdmin] = useState(false);
 
@@ -138,6 +140,29 @@ export function Sidebar() {
             </button>
           )}
 
+          {/* Check for updates */}
+          <button
+            onClick={() => void checkForUpdates(true)}
+            disabled={isChecking}
+            className={cn(
+              'sidebar-item w-full relative',
+              collapsed && 'justify-center px-2',
+              updateInfo?.available && 'text-violet-400 bg-violet-500/10 hover:bg-violet-500/20'
+            )}
+            title="Check for updates"
+            id="sidebar-check-updates-btn"
+          >
+            <RefreshCw size={18} className={cn(isChecking && 'animate-spin', updateInfo?.available && 'text-violet-400')} />
+            {!collapsed && (
+              <span className="flex items-center justify-between flex-1">
+                <span>{isChecking ? 'Checking...' : updateInfo?.available ? 'Update Ready!' : 'Check Updates'}</span>
+                {updateInfo?.available && (
+                  <span className="w-2 h-2 rounded-full bg-violet-400 animate-ping" />
+                )}
+              </span>
+            )}
+          </button>
+
           {/* Collapse toggle */}
           <button
             onClick={() => setSidebarCollapsed(!collapsed)}
@@ -158,6 +183,12 @@ export function Sidebar() {
             <LogOut size={18} />
             {!collapsed && <span>Sign Out</span>}
           </button>
+
+          {!collapsed && (
+            <p className="text-[10px] text-muted/60 text-center pt-1 font-mono">
+              v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0'}
+            </p>
+          )}
         </div>
       </aside>
 

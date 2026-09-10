@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { CalendarDays, LayoutGrid, Calendar, Sun, Moon, LogOut, Shield, Bell, BellOff, AlarmClock } from 'lucide-react';
+import { CalendarDays, LayoutGrid, Calendar, Sun, Moon, LogOut, Shield, Bell, BellOff, AlarmClock, RefreshCw } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useUpdateStore } from '../../store/useUpdateStore';
 import { cn } from '../../lib/utils';
 import { AdminPanel } from '../admin/AdminPanel';
 
@@ -15,6 +16,7 @@ const NAV = [
 export function BottomNav() {
   const { preferences, setTheme } = useAppStore();
   const { user, signOut } = useAuthStore();
+  const { updateInfo, isChecking, checkForUpdates } = useUpdateStore();
   const [showAdmin, setShowAdmin] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -106,7 +108,7 @@ export function BottomNav() {
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(v => !v)}
-                className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl min-w-[52px]"
+                className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl min-w-[52px] relative"
                 id="mobile-user-menu-btn"
               >
                 {user.avatarUrl ? (
@@ -115,6 +117,9 @@ export function BottomNav() {
                   <div className="w-7 h-7 rounded-full bg-violet-500/20 flex items-center justify-center">
                     <span className="text-xs font-bold text-violet-400">{user.name?.[0] ?? '?'}</span>
                   </div>
+                )}
+                {updateInfo?.available && (
+                  <span className="absolute top-1 right-2 w-2 h-2 rounded-full bg-violet-400 ring-2 ring-background animate-pulse" />
                 )}
                 <span className="text-[10px] font-semibold text-muted tracking-wide">Me</span>
               </button>
@@ -137,6 +142,23 @@ export function BottomNav() {
                     </button>
                   )}
                   <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      void checkForUpdates(true);
+                    }}
+                    disabled={isChecking}
+                    className="flex items-center justify-between w-full px-3 py-2.5 text-xs text-secondary hover:bg-secondary-surface transition-colors"
+                    id="mobile-check-updates-btn"
+                  >
+                    <div className="flex items-center gap-2">
+                      <RefreshCw size={13} className={cn(isChecking && 'animate-spin', updateInfo?.available && 'text-violet-400')} />
+                      <span>{updateInfo?.available ? 'Update Available!' : 'Check Updates'}</span>
+                    </div>
+                    {updateInfo?.available && (
+                      <span className="w-2 h-2 rounded-full bg-violet-400 animate-ping" />
+                    )}
+                  </button>
+                  <button
                     onClick={() => { signOut(); setShowUserMenu(false); }}
                     className="flex items-center gap-2 w-full px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
                     id="mobile-signout-btn"
@@ -144,6 +166,9 @@ export function BottomNav() {
                     <LogOut size={13} />
                     Sign Out
                   </button>
+                  <div className="px-3 py-1.5 border-t border-base text-[10px] text-muted/60 font-mono text-center">
+                    v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0'}
+                  </div>
                 </div>
               )}
             </div>

@@ -13,6 +13,8 @@ import { AlarmOverlay } from './components/shared/AlarmOverlay';
 import { useAuthStore } from './store/useAuthStore';
 import { useSync }     from './hooks/useSync';
 import { useNotifications } from './hooks/useNotifications';
+import { UpdateModal } from './components/shared/UpdateModal';
+import { useUpdateStore } from './store/useUpdateStore';
 
 function DayRoute() {
   const [params] = useSearchParams();
@@ -24,6 +26,19 @@ function DayRoute() {
 function AppLayout() {
   useSync(); // debounced cloud sync
   const { alarm, dismissAlarm } = useNotifications();
+  const {
+    updateInfo,
+    showModal,
+    checkError,
+    closeModal,
+    startDownload,
+    checkForUpdates,
+  } = useUpdateStore();
+
+  useEffect(() => {
+    void checkForUpdates(false);
+  }, [checkForUpdates]);
+
   return (
     <div className="flex h-screen overflow-hidden bg-primary-surface">
       <Sidebar />
@@ -40,6 +55,15 @@ function AppLayout() {
       {alarm.active && alarm.task && (
         <AlarmOverlay task={alarm.task} onDismiss={dismissAlarm} />
       )}
+
+      {/* In-app update notification modal */}
+      <UpdateModal
+        isOpen={showModal}
+        onClose={closeModal}
+        updateInfo={updateInfo}
+        checkError={checkError}
+        onDownload={startDownload}
+      />
     </div>
   );
 }
