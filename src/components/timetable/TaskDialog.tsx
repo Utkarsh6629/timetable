@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Bell, BellOff } from 'lucide-react';
 import type { TimetableTask } from '../../types';
-import { generateId, TASK_COLORS, FULL_DAY_NAMES, formatHour, cn } from '../../lib/utils';
+import { generateId, TASK_COLORS, FULL_DAY_NAMES, cn } from '../../lib/utils';
 import { useAppStore } from '../../store/useAppStore';
+import { TimeRangePicker } from './TimeRangePicker';
 
 interface Props {
   task: Partial<TimetableTask>;
@@ -39,6 +40,7 @@ export function TaskDialog({ task, onSave, onClose, dayStartHour, dayEndHour }: 
   const [startHour, setStartHour] = useState(task.startHour ?? 9);
   const [endHour, setEndHour] = useState(task.endHour ?? 10);
   const [recurring, setRecurring] = useState(task.recurring ?? true);
+  const [alarmEnabled, setAlarmEnabled] = useState(task.alarmDisabled !== true);
 
   const isNew = !task.id;
 
@@ -52,7 +54,8 @@ export function TaskDialog({ task, onSave, onClose, dayStartHour, dayEndHour }: 
 
   const handleSave = () => {
     if (!title.trim() || selectedDays.length === 0) return;
-    const clampedEnd = Math.max(startHour + 0.5, endHour);
+    const clampedEnd = Math.max(startHour + 5 / 60, endHour);
+    const alarmDisabled = !alarmEnabled ? true : undefined;
 
     if (isNew) {
       // Create one task per selected day
@@ -65,6 +68,7 @@ export function TaskDialog({ task, onSave, onClose, dayStartHour, dayEndHour }: 
         startHour,
         endHour: clampedEnd,
         recurring,
+        alarmDisabled,
       }));
       onSave(tasks);
     } else {
@@ -91,6 +95,7 @@ export function TaskDialog({ task, onSave, onClose, dayStartHour, dayEndHour }: 
             startHour,
             endHour: clampedEnd,
             recurring,
+            alarmDisabled,
           });
         } else {
           tasksToSave.push({
@@ -102,6 +107,7 @@ export function TaskDialog({ task, onSave, onClose, dayStartHour, dayEndHour }: 
             startHour,
             endHour: clampedEnd,
             recurring,
+            alarmDisabled,
           });
         }
       });
@@ -116,12 +122,6 @@ export function TaskDialog({ task, onSave, onClose, dayStartHour, dayEndHour }: 
       onSave(tasksToSave, deleteIds);
     }
   };
-
-  // Half-hour steps spanning the user's personal day (may go past midnight)
-  const halfHours = Array.from(
-    { length: (dayEndHour - dayStartHour) * 2 + 1 },
-    (_, i) => dayStartHour + i * 0.5
-  );
 
   const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Mon–Sun
 
@@ -236,31 +236,61 @@ export function TaskDialog({ task, onSave, onClose, dayStartHour, dayEndHour }: 
             </div>
           </div>
 
-          {/* Time range */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted uppercase tracking-wider">Start</label>
-              <select
-                className="input-base"
-                value={startHour}
-                onChange={e => setStartHour(Number(e.target.value))}
+          {/* Time range picker */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider block">
+              Time (Exact Start & End)
+            </label>
+            <TimeRangePicker
+              startHour={startHour}
+              endHour={endHour}
+              onChange={(s, e) => {
+                setStartHour(s);
+                setEndHour(e);
+              }}
+              dayStartHour={dayStartHour}
+              dayEndHour={dayEndHour}
+            />
+          </div>
+
+          {/* Alarm toggle for this task */}
+          <div
+            onClick={() => setAlarmEnabled(!alarmEnabled)}
+            className="flex items-center justify-between p-3.5 rounded-2xl bg-secondary-surface border border-base cursor-pointer hover:border-violet-500/40 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={cn(
+                  'w-9 h-9 rounded-xl flex items-center justify-center transition-colors',
+                  alarmEnabled ? 'bg-violet-500/20 text-violet-400' : 'bg-primary-surface text-muted'
+                )}
               >
-                {halfHours.map(h => (
-                  <option key={h} value={h}>{formatHour(h)}</option>
-                ))}
-              </select>
+                {alarmEnabled ? <Bell size={18} /> : <BellOff size={18} />}
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-primary">
+                  {alarmEnabled ? 'Alarm Sound: Enabled' : 'Alarm Sound: Disabled'}
+                </p>
+                <p className="text-[11px] text-muted">
+                  {alarmEnabled
+                    ? 'Loud alarm will sound when task begins in Alarm/Both mode'
+                    : 'Silent for this task (only notification will show)'}
+                </p>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted uppercase tracking-wider">End</label>
-              <select
-                className="input-base"
-                value={endHour}
-                onChange={e => setEndHour(Number(e.target.value))}
-              >
-                {halfHours.filter(h => h > startHour).map(h => (
-                  <option key={h} value={h}>{formatHour(h)}</option>
-                ))}
-              </select>
+
+            <div
+              className={cn(
+                'relative w-10 h-5 rounded-full transition-colors duration-200 shrink-0',
+                alarmEnabled ? 'bg-violet-600' : 'bg-primary-surface border border-base'
+              )}
+            >
+              <div
+                className={cn(
+                  'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200',
+                  alarmEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                )}
+              />
             </div>
           </div>
 

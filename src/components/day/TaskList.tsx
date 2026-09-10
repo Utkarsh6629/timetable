@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckSquare, Square, ChevronDown, ChevronUp, ListChecks, StickyNote } from 'lucide-react';
+import { CheckSquare, Square, ChevronDown, ChevronUp, ListChecks, StickyNote, Bell, BellOff } from 'lucide-react';
 import type { TimetableTask, DayRecord } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { formatHour, cn } from '../../lib/utils';
@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function TaskList({ tasks, dateStr, record }: Props) {
-  const { toggleTaskCompletion, updateTaskNotes } = useAppStore();
+  const { toggleTaskCompletion, updateTaskNotes, toggleTaskAlarm, preferences } = useAppStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const sorted = [...tasks].sort((a, b) => a.startHour - b.startHour);
@@ -98,6 +98,30 @@ export function TaskList({ tasks, dateStr, record }: Props) {
                 <span className="text-xs text-muted shrink-0">
                   {Math.round((task.endHour - task.startHour) * 60)}m
                 </span>
+
+                {/* Per-task alarm toggle */}
+                {(preferences.notificationMode === 'alarm' || preferences.notificationMode === 'both') && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleTaskAlarm(task.id);
+                    }}
+                    className={cn(
+                      'p-1.5 rounded-lg transition-colors shrink-0',
+                      task.alarmDisabled
+                        ? 'text-muted/50 hover:text-muted hover:bg-secondary-surface'
+                        : 'text-violet-400 hover:bg-violet-500/15'
+                    )}
+                    title={
+                      task.alarmDisabled
+                        ? 'Alarm disabled for this task (click to enable)'
+                        : 'Alarm active for this task (click to mute)'
+                    }
+                  >
+                    {task.alarmDisabled ? <BellOff size={14} /> : <Bell size={14} />}
+                  </button>
+                )}
 
                 {/* Expand toggle */}
                 <button

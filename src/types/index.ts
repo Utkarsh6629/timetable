@@ -4,9 +4,10 @@ export interface TimetableTask {
   color: string;
   description?: string;
   dayOfWeek: number; // 0=Sunday, 1=Mon … 6=Sat
-  startHour: number; // e.g. 6.5 = 6:30
+  startHour: number; // e.g. 6.5 = 6:30, 9.25 = 9:15
   endHour: number;
   recurring: boolean;
+  alarmDisabled?: boolean; // If true, alarm will not sound for this task in alarm/both mode
 }
 
 export interface DayTaskRecord {
@@ -42,6 +43,7 @@ export interface WeeklyGoalRecord {
 // ── Preferences & State ──────────────────────────────────────────────────────
 
 export type NotificationMode = 'off' | 'notification' | 'alarm' | 'both';
+export type AlarmTone = 'radar' | 'digital' | 'chime' | 'retro' | 'siren';
 
 export interface UserPreferences {
   theme: 'light' | 'dark' | 'system';
@@ -50,6 +52,8 @@ export interface UserPreferences {
   sidebarCollapsed: boolean;
   notificationMode: NotificationMode;
   notifyMinutesBefore: number;
+  alarmTone?: AlarmTone;
+  alarmVolume?: number; // 0 - 100
 }
 
 export interface AppState {

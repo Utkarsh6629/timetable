@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useUpdateStore } from '../../store/useUpdateStore';
 import { cn } from '../../lib/utils';
 import { AdminPanel } from '../admin/AdminPanel';
+import { AlarmSettingsModal } from '../shared/AlarmSettingsModal';
 
 const NAV = [
   { to: '/', label: 'Day', icon: CalendarDays, end: true },
@@ -19,6 +20,7 @@ export function Sidebar() {
   const { updateInfo, isChecking, checkForUpdates } = useUpdateStore();
   const collapsed = preferences.sidebarCollapsed;
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showAlarmSettings, setShowAlarmSettings] = useState(false);
 
   return (
     <>
@@ -88,30 +90,11 @@ export function Sidebar() {
             {!collapsed && <span>{preferences.theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
           </button>
 
-          {/* Notification mode toggle — cycles: off → notification → alarm → both → off */}
+          {/* Alarm & Notifications settings button */}
           <button
-            onClick={async () => {
-              const modes = ['off', 'notification', 'alarm', 'both'] as const;
-              const current = preferences.notificationMode;
-              const nextIdx = (modes.indexOf(current) + 1) % modes.length;
-              const next = modes[nextIdx];
-
-              // Request browser permission when switching to a mode that uses notifications
-              if (next === 'notification' || next === 'both') {
-                if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-                  await Notification.requestPermission();
-                }
-              }
-
-              useAppStore.getState().setNotificationMode(next);
-            }}
+            onClick={() => setShowAlarmSettings(true)}
             className={cn('sidebar-item w-full', collapsed && 'justify-center px-2')}
-            title={
-              preferences.notificationMode === 'off' ? 'Alerts: Off (click to enable)' :
-              preferences.notificationMode === 'notification' ? 'Mode: Notifications' :
-              preferences.notificationMode === 'alarm' ? 'Mode: Alarm' :
-              'Mode: Both'
-            }
+            title="Alarm & Alert Settings"
           >
             {preferences.notificationMode === 'off' && <BellOff size={18} />}
             {preferences.notificationMode === 'notification' && <Bell size={18} className="text-violet-400" />}
@@ -193,6 +176,7 @@ export function Sidebar() {
       </aside>
 
       {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
+      <AlarmSettingsModal isOpen={showAlarmSettings} onClose={() => setShowAlarmSettings(false)} />
     </>
   );
 }

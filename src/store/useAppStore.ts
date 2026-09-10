@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { format, getDay, startOfWeek } from 'date-fns';
-import type { TimetableTask, DayRecord, UserPreferences, WeeklyGoalRecord, WeeklyGoalItem, NotificationMode } from '../types';
+import type { TimetableTask, DayRecord, UserPreferences, WeeklyGoalRecord, WeeklyGoalItem, NotificationMode, AlarmTone } from '../types';
 import type { UserDataPayload } from '../lib/api';
 import { generateId } from '../lib/utils';
 
@@ -38,8 +38,10 @@ export const DEFAULT_PREFS: UserPreferences = {
   dayStartHour:        6,
   dayEndHour:          23,
   sidebarCollapsed:    false,
-  notificationMode:    'off',
+  notificationMode:    'notification',
   notifyMinutesBefore: 2,
+  alarmTone:           'radar',
+  alarmVolume:         100,
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -78,6 +80,9 @@ interface Store {
   setSidebarCollapsed:    (v: boolean) => void;
   setNotificationMode:    (mode: NotificationMode) => void;
   setNotifyMinutesBefore: (v: number) => void;
+  setAlarmTone:           (tone: AlarmTone) => void;
+  setAlarmVolume:         (volume: number) => void;
+  toggleTaskAlarm:        (taskId: string) => void;
 
   // Computed helpers
   getTasksForDate:      (date: string) => TimetableTask[];
@@ -267,6 +272,19 @@ export const useAppStore = create<Store>((set, get) => ({
 
   setNotifyMinutesBefore: (v) =>
     set(s => ({ preferences: { ...s.preferences, notifyMinutesBefore: v } })),
+
+  setAlarmTone: (tone) =>
+    set(s => ({ preferences: { ...s.preferences, alarmTone: tone } })),
+
+  setAlarmVolume: (volume) =>
+    set(s => ({ preferences: { ...s.preferences, alarmVolume: Math.max(0, Math.min(100, volume)) } })),
+
+  toggleTaskAlarm: (taskId) =>
+    set(s => ({
+      timetable: s.timetable.map(t =>
+        t.id === taskId ? { ...t, alarmDisabled: !t.alarmDisabled } : t
+      ),
+    })),
 
   // ── Computed ───────────────────────────────────────────────────────────────
   getTasksForDate: (date) => {

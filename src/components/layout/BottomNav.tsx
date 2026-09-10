@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useUpdateStore } from '../../store/useUpdateStore';
 import { cn } from '../../lib/utils';
 import { AdminPanel } from '../admin/AdminPanel';
+import { AlarmSettingsModal } from '../shared/AlarmSettingsModal';
 
 const NAV = [
   { to: '/', label: 'Day', icon: CalendarDays, end: true },
@@ -19,6 +20,7 @@ export function BottomNav() {
   const { updateInfo, isChecking, checkForUpdates } = useUpdateStore();
   const [showAdmin, setShowAdmin] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showAlarmSettings, setShowAlarmSettings] = useState(false);
 
   return (
     <>
@@ -67,27 +69,14 @@ export function BottomNav() {
             </span>
           </button>
 
-          {/* Notification mode toggle — cycles: off → notification → alarm → both → off */}
+          {/* Alarm & Alert settings button */}
           <button
-            onClick={async () => {
-              const modes = ['off', 'notification', 'alarm', 'both'] as const;
-              const current = useAppStore.getState().preferences.notificationMode;
-              const nextIdx = (modes.indexOf(current) + 1) % modes.length;
-              const next = modes[nextIdx];
-
-              if (next === 'notification' || next === 'both') {
-                if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-                  await Notification.requestPermission();
-                }
-              }
-
-              useAppStore.getState().setNotificationMode(next);
-            }}
+            onClick={() => setShowAlarmSettings(true)}
             className={cn(
               'flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all duration-150 min-w-[52px]',
               preferences.notificationMode !== 'off' ? 'text-violet-500' : 'text-muted'
             )}
-            title="Cycle alert mode"
+            title="Alarm & Alert Settings"
           >
             <span className={cn('p-1.5 rounded-xl', preferences.notificationMode !== 'off' && 'bg-violet-500/15')}>
               {preferences.notificationMode === 'off' && <BellOff size={20} strokeWidth={1.8} />}
@@ -177,6 +166,7 @@ export function BottomNav() {
       </nav>
 
       {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
+      <AlarmSettingsModal isOpen={showAlarmSettings} onClose={() => setShowAlarmSettings(false)} />
     </>
   );
 }

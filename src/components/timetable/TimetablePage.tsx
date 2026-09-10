@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Plus, Settings, X, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Settings, X, Pencil, Trash2, ChevronLeft, ChevronRight, Bell, BellOff } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { formatHour, TASK_COLORS, FULL_DAY_NAMES, cn } from '../../lib/utils';
 import type { TimetableTask } from '../../types';
@@ -24,7 +24,7 @@ function useIsMobile() {
 }
 
 export function TimetablePage() {
-  const { timetable, addTask, updateTask, deleteTask, clearTimetable, preferences, setDayRange } = useAppStore();
+  const { timetable, addTask, updateTask, deleteTask, clearTimetable, preferences, setDayRange, toggleTaskAlarm } = useAppStore();
   const [dialogTask, setDialogTask] = useState<Partial<TimetableTask> | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -249,6 +249,20 @@ export function TimetablePage() {
                   </div>
                   {/* Actions */}
                   <div className="flex items-center gap-1 shrink-0">
+                    {(preferences.notificationMode === 'alarm' || preferences.notificationMode === 'both') && (
+                      <button
+                        className={cn(
+                          'p-2 rounded-lg transition-colors',
+                          task.alarmDisabled
+                            ? 'text-muted/50 hover:text-muted hover:bg-secondary-surface'
+                            : 'text-violet-400 hover:bg-violet-500/10'
+                        )}
+                        title={task.alarmDisabled ? 'Alarm disabled for this task (click to enable)' : 'Alarm active (click to mute)'}
+                        onClick={e => { e.stopPropagation(); toggleTaskAlarm(task.id); }}
+                      >
+                        {task.alarmDisabled ? <BellOff size={14} /> : <Bell size={14} />}
+                      </button>
+                    )}
                     <button
                       className="p-2 rounded-lg text-muted hover:text-violet-400 hover:bg-violet-500/10 transition-colors"
                       onClick={e => { e.stopPropagation(); setDialogTask(task); }}
@@ -373,6 +387,18 @@ export function TimetablePage() {
                             {/* Action buttons */}
                             {height >= 40 && (
                               <div className="flex items-center gap-0.5 shrink-0 ml-1">
+                                {(preferences.notificationMode === 'alarm' || preferences.notificationMode === 'both') && (
+                                  <button
+                                    className={cn(
+                                      'p-0.5 rounded transition-colors',
+                                      task.alarmDisabled ? 'text-white/40 hover:text-white' : 'text-white/90 hover:text-white'
+                                    )}
+                                    title={task.alarmDisabled ? 'Alarm disabled for this task (click to enable)' : 'Alarm active (click to mute)'}
+                                    onClick={e => { e.stopPropagation(); toggleTaskAlarm(task.id); }}
+                                  >
+                                    {task.alarmDisabled ? <BellOff size={10} /> : <Bell size={10} />}
+                                  </button>
+                                )}
                                 <button
                                   className="text-white/70 hover:text-white p-0.5 rounded transition-colors"
                                   onClick={e => { e.stopPropagation(); setDialogTask(task); }}
