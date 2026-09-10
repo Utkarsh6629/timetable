@@ -80,10 +80,17 @@ export function UpdateModal({ isOpen, onClose, updateInfo, checkError, onDownloa
               </p>
             )}
 
-            {/* Hint */}
-            <p className="text-[11px] text-muted mb-5 leading-normal">
-              💡 <span className="font-medium text-secondary">Tip:</span> Tap <span className="text-violet-400 font-medium">Download & Update</span>. Once downloaded, open the notification or APK file to update with all your data preserved.
-            </p>
+            {/* Download & Installation Instructions */}
+            <div className="rounded-xl bg-violet-500/10 border border-violet-500/20 p-3 mb-5 space-y-1.5">
+              <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                <span>📲</span> How to install after downloading:
+              </p>
+              <ol className="text-[11px] text-secondary space-y-1 list-decimal list-inside leading-relaxed">
+                <li>Tap <strong className="text-violet-400">Download & Update</strong> below.</li>
+                <li>Once downloaded, <strong>swipe down your phone's top notification bar</strong>.</li>
+                <li>Tap <strong>life-planner.apk</strong> (or tap <strong>Open</strong>) and press <strong>Update</strong>.</li>
+              </ol>
+            </div>
 
             {/* Action Buttons */}
             <div className="flex items-center gap-3">

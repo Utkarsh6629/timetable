@@ -158,13 +158,14 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const isNative = !!(window as any).Capacitor?.isNativePlatform?.();
       if (isNative) {
-        const { Browser } = await import('@capacitor/browser');
-        await Browser.open({ url: updateInfo.downloadUrl });
+        // Open in external system browser (_system) so Android handles APK download
+        // and displays the direct "Open" button in the download bar
+        window.open(updateInfo.downloadUrl, '_system');
       } else {
         window.open(updateInfo.downloadUrl, '_blank');
       }
     } catch {
-      window.open(updateInfo.downloadUrl, '_blank');
+      window.open(updateInfo.downloadUrl, '_system');
     }
   },
 }));
