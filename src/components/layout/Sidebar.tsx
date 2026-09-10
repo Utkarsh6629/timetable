@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { CalendarDays, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Sun, Moon, LogOut, Shield } from 'lucide-react';
+import { CalendarDays, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Sun, Moon, LogOut, Shield, Bell, BellOff, AlarmClock } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { cn } from '../../lib/utils';
@@ -84,6 +84,45 @@ export function Sidebar() {
           >
             {preferences.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             {!collapsed && <span>{preferences.theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
+          </button>
+
+          {/* Notification mode toggle — cycles: off → notification → alarm → both → off */}
+          <button
+            onClick={async () => {
+              const modes = ['off', 'notification', 'alarm', 'both'] as const;
+              const current = preferences.notificationMode;
+              const nextIdx = (modes.indexOf(current) + 1) % modes.length;
+              const next = modes[nextIdx];
+
+              // Request browser permission when switching to a mode that uses notifications
+              if (next === 'notification' || next === 'both') {
+                if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+                  await Notification.requestPermission();
+                }
+              }
+
+              useAppStore.getState().setNotificationMode(next);
+            }}
+            className={cn('sidebar-item w-full', collapsed && 'justify-center px-2')}
+            title={
+              preferences.notificationMode === 'off' ? 'Alerts: Off (click to enable)' :
+              preferences.notificationMode === 'notification' ? 'Mode: Notifications' :
+              preferences.notificationMode === 'alarm' ? 'Mode: Alarm' :
+              'Mode: Both'
+            }
+          >
+            {preferences.notificationMode === 'off' && <BellOff size={18} />}
+            {preferences.notificationMode === 'notification' && <Bell size={18} className="text-violet-400" />}
+            {preferences.notificationMode === 'alarm' && <AlarmClock size={18} className="text-orange-400" />}
+            {preferences.notificationMode === 'both' && <Bell size={18} className="text-green-400" />}
+            {!collapsed && (
+              <span>
+                {preferences.notificationMode === 'off' && 'Alerts Off'}
+                {preferences.notificationMode === 'notification' && 'Notifications'}
+                {preferences.notificationMode === 'alarm' && 'Alarm'}
+                {preferences.notificationMode === 'both' && 'Notif + Alarm'}
+              </span>
+            )}
           </button>
 
           {/* Admin panel (owner only) */}

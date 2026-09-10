@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import { format, getDay } from 'date-fns';
-import type { TimetableTask, DayRecord, UserPreferences } from '../types';
+import { format, getDay, startOfWeek } from 'date-fns';
+import type { TimetableTask, DayRecord, UserPreferences, WeeklyGoalRecord, WeeklyGoalItem, NotificationMode } from '../types';
 import type { UserDataPayload } from '../lib/api';
+import { generateId } from '../lib/utils';
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
@@ -33,18 +34,21 @@ export const DEFAULT_TIMETABLE: TimetableTask[] = [
 ];
 
 export const DEFAULT_PREFS: UserPreferences = {
-  theme:            'dark',
-  dayStartHour:     6,
-  dayEndHour:       23,
-  sidebarCollapsed: false,
+  theme:               'dark',
+  dayStartHour:        6,
+  dayEndHour:          23,
+  sidebarCollapsed:    false,
+  notificationMode:    'off',
+  notifyMinutesBefore: 2,
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Store {
-  timetable:   TimetableTask[];
-  dayRecords:  Record<string, DayRecord>;
-  preferences: UserPreferences;
+  timetable:    TimetableTask[];
+  dayRecords:   Record<string, DayRecord>;
+  weeklyGoals:  Record<string, WeeklyGoalRecord>;
+  preferences:  UserPreferences;
 
   // Timetable actions
   addTask:       (task: TimetableTask) => void;
@@ -56,11 +60,24 @@ interface Store {
   getDayRecord:         (date: string) => DayRecord;
   toggleTaskCompletion: (date: string, taskId: string) => void;
   updateDayNotes:       (date: string, field: 'notes' | 'wins' | 'improvements', value: string) => void;
+  updateTaskNotes:      (date: string, taskId: string, notes: string) => void;
+
+  // Weekly goals actions
+  getWeekKey:            (date: Date) => string;
+  getWeeklyGoals:        (weekKey: string) => WeeklyGoalRecord | null;
+  addWeeklyGoalItem:     (weekKey: string, text: string) => void;
+  toggleWeeklyGoalItem:  (weekKey: string, goalId: string) => void;
+  removeWeeklyGoalItem:  (weekKey: string, goalId: string) => void;
+  updateWeeklyGoalItem:  (weekKey: string, goalId: string, text: string) => void;
+  updateWeeklyGoalNotes: (weekKey: string, notes: string) => void;
+  initWeeklyGoals:       (weekKey: string) => void;
 
   // Preference actions
-  setTheme:           (theme: UserPreferences['theme']) => void;
-  setDayRange:        (start: number, end: number) => void;
-  setSidebarCollapsed: (v: boolean) => void;
+  setTheme:               (theme: UserPreferences['theme']) => void;
+  setDayRange:            (start: number, end: number) => void;
+  setSidebarCollapsed:    (v: boolean) => void;
+  setNotificationMode:    (mode: NotificationMode) => void;
+  setNotifyMinutesBefore: (v: number) => void;
 
   // Computed helpers
   getTasksForDate:      (date: string) => TimetableTask[];
@@ -92,12 +109,22 @@ function calcCompletion(record: DayRecord): number {
   return Math.round((done / record.tasks.length) * 100);
 }
 
+function buildEmptyWeeklyGoals(weekKey: string): WeeklyGoalRecord {
+  return {
+    weekKey,
+    goals: [],
+    notes: '',
+    setOn: new Date().toISOString(),
+  };
+}
+
 // ── Store ─────────────────────────────────────────────────────────────────────
 // Note: No `persist` middleware — data is persisted to the server via useSync.
 
 export const useAppStore = create<Store>((set, get) => ({
   timetable:   DEFAULT_TIMETABLE,
   dayRecords:  {},
+  weeklyGoals: {},
   preferences: DEFAULT_PREFS,
 
   // ── Timetable ──────────────────────────────────────────────────────────────
@@ -142,6 +169,89 @@ export const useAppStore = create<Store>((set, get) => ({
     });
   },
 
+  updateTaskNotes: (date, taskId, notes) => {
+    set(s => {
+      const existing = s.dayRecords[date] ?? buildDayRecord(date, s.getTasksForDate(date));
+      const taskExists = existing.tasks.find(t => t.taskId === taskId);
+      const tasks = taskExists
+        ? existing.tasks.map(t => t.taskId === taskId ? { ...t, notes } : t)
+        : [...existing.tasks, { taskId, completed: false, notes }];
+      const updated: DayRecord = { ...existing, tasks };
+      updated.completionPercentage = calcCompletion(updated);
+      return { dayRecords: { ...s.dayRecords, [date]: updated } };
+    });
+  },
+
+  // ── Weekly Goals ───────────────────────────────────────────────────────────
+  getWeekKey: (date) => {
+    const monday = startOfWeek(date, { weekStartsOn: 1 });
+    return format(monday, 'yyyy-MM-dd');
+  },
+
+  getWeeklyGoals: (weekKey) => {
+    return get().weeklyGoals[weekKey] ?? null;
+  },
+
+  initWeeklyGoals: (weekKey) => {
+    set(s => {
+      if (s.weeklyGoals[weekKey]) return s;
+      return { weeklyGoals: { ...s.weeklyGoals, [weekKey]: buildEmptyWeeklyGoals(weekKey) } };
+    });
+  },
+
+  addWeeklyGoalItem: (weekKey, text) => {
+    set(s => {
+      const existing = s.weeklyGoals[weekKey] ?? buildEmptyWeeklyGoals(weekKey);
+      const newItem: WeeklyGoalItem = { id: generateId(), text, completed: false };
+      const updated: WeeklyGoalRecord = { ...existing, goals: [...existing.goals, newItem] };
+      return { weeklyGoals: { ...s.weeklyGoals, [weekKey]: updated } };
+    });
+  },
+
+  toggleWeeklyGoalItem: (weekKey, goalId) => {
+    set(s => {
+      const existing = s.weeklyGoals[weekKey];
+      if (!existing) return s;
+      const updated: WeeklyGoalRecord = {
+        ...existing,
+        goals: existing.goals.map(g => g.id === goalId ? { ...g, completed: !g.completed } : g),
+      };
+      return { weeklyGoals: { ...s.weeklyGoals, [weekKey]: updated } };
+    });
+  },
+
+  removeWeeklyGoalItem: (weekKey, goalId) => {
+    set(s => {
+      const existing = s.weeklyGoals[weekKey];
+      if (!existing) return s;
+      const updated: WeeklyGoalRecord = {
+        ...existing,
+        goals: existing.goals.filter(g => g.id !== goalId),
+      };
+      return { weeklyGoals: { ...s.weeklyGoals, [weekKey]: updated } };
+    });
+  },
+
+  updateWeeklyGoalItem: (weekKey, goalId, text) => {
+    set(s => {
+      const existing = s.weeklyGoals[weekKey];
+      if (!existing) return s;
+      const updated: WeeklyGoalRecord = {
+        ...existing,
+        goals: existing.goals.map(g => g.id === goalId ? { ...g, text } : g),
+      };
+      return { weeklyGoals: { ...s.weeklyGoals, [weekKey]: updated } };
+    });
+  },
+
+  updateWeeklyGoalNotes: (weekKey, notes) => {
+    set(s => {
+      const existing = s.weeklyGoals[weekKey] ?? buildEmptyWeeklyGoals(weekKey);
+      const updated: WeeklyGoalRecord = { ...existing, notes };
+      return { weeklyGoals: { ...s.weeklyGoals, [weekKey]: updated } };
+    });
+  },
+
   // ── Preferences ────────────────────────────────────────────────────────────
   setTheme: (theme) =>
     set(s => ({ preferences: { ...s.preferences, theme } })),
@@ -151,6 +261,12 @@ export const useAppStore = create<Store>((set, get) => ({
 
   setSidebarCollapsed: (v) =>
     set(s => ({ preferences: { ...s.preferences, sidebarCollapsed: v } })),
+
+  setNotificationMode: (mode) =>
+    set(s => ({ preferences: { ...s.preferences, notificationMode: mode } })),
+
+  setNotifyMinutesBefore: (v) =>
+    set(s => ({ preferences: { ...s.preferences, notifyMinutesBefore: v } })),
 
   // ── Computed ───────────────────────────────────────────────────────────────
   getTasksForDate: (date) => {
@@ -211,6 +327,7 @@ export const useAppStore = create<Store>((set, get) => ({
     set({
       timetable:   timetable == null ? DEFAULT_TIMETABLE : timetable,
       dayRecords:  data.dayRecords ?? {},
+      weeklyGoals: data.weeklyGoals ?? {},
       preferences: { ...DEFAULT_PREFS, ...(data.preferences ?? {}) },
     });
   },
@@ -218,6 +335,7 @@ export const useAppStore = create<Store>((set, get) => ({
   resetStore: () => set({
     timetable:   DEFAULT_TIMETABLE,
     dayRecords:  {},
+    weeklyGoals: {},
     preferences: DEFAULT_PREFS,
   }),
 }));

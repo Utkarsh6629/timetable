@@ -7,6 +7,7 @@ import { TimelineHeader } from './TimelineHeader';
 import { TaskList } from './TaskList';
 import { DailyJournal } from './DailyJournal';
 import { StatsBar } from './StatsBar';
+import { WeeklyGoals } from './WeeklyGoals';
 
 interface Props {
   dateKey?: string;
@@ -77,6 +78,9 @@ export function DayView({ dateKey }: Props) {
         {isToday(currentDate) && (
           <TimelineHeader tasks={tasks} dateStr={dateStr} />
         )}
+
+        {/* Weekly Goals */}
+        <WeeklyGoals currentDate={currentDate} />
 
         {/* Stats */}
         <StatsBar />

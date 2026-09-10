@@ -24,15 +24,37 @@ export interface DayRecord {
   completionPercentage: number;
 }
 
+// ── Weekly Goals ──────────────────────────────────────────────────────────────
+
+export interface WeeklyGoalItem {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
+export interface WeeklyGoalRecord {
+  weekKey: string;            // Monday ISO date yyyy-MM-dd
+  goals: WeeklyGoalItem[];    // checklist items
+  notes: string;              // free-text area
+  setOn: string;              // ISO timestamp of creation
+}
+
+// ── Preferences & State ──────────────────────────────────────────────────────
+
+export type NotificationMode = 'off' | 'notification' | 'alarm' | 'both';
+
 export interface UserPreferences {
   theme: 'light' | 'dark' | 'system';
   dayStartHour: number;
   dayEndHour: number;
   sidebarCollapsed: boolean;
+  notificationMode: NotificationMode;
+  notifyMinutesBefore: number;
 }
 
 export interface AppState {
   timetable: TimetableTask[];
   dayRecords: Record<string, DayRecord>;
+  weeklyGoals: Record<string, WeeklyGoalRecord>;
   preferences: UserPreferences;
 }

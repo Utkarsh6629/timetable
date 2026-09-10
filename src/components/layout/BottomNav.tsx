@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { CalendarDays, LayoutGrid, Calendar, Sun, Moon, LogOut, Shield } from 'lucide-react';
+import { CalendarDays, LayoutGrid, Calendar, Sun, Moon, LogOut, Shield, Bell, BellOff, AlarmClock } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { cn } from '../../lib/utils';
@@ -62,6 +62,42 @@ export function BottomNav() {
             </span>
             <span className="text-[10px] font-semibold tracking-wide">
               {preferences.theme === 'dark' ? 'Light' : 'Dark'}
+            </span>
+          </button>
+
+          {/* Notification mode toggle — cycles: off → notification → alarm → both → off */}
+          <button
+            onClick={async () => {
+              const modes = ['off', 'notification', 'alarm', 'both'] as const;
+              const current = useAppStore.getState().preferences.notificationMode;
+              const nextIdx = (modes.indexOf(current) + 1) % modes.length;
+              const next = modes[nextIdx];
+
+              if (next === 'notification' || next === 'both') {
+                if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+                  await Notification.requestPermission();
+                }
+              }
+
+              useAppStore.getState().setNotificationMode(next);
+            }}
+            className={cn(
+              'flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all duration-150 min-w-[52px]',
+              preferences.notificationMode !== 'off' ? 'text-violet-500' : 'text-muted'
+            )}
+            title="Cycle alert mode"
+          >
+            <span className={cn('p-1.5 rounded-xl', preferences.notificationMode !== 'off' && 'bg-violet-500/15')}>
+              {preferences.notificationMode === 'off' && <BellOff size={20} strokeWidth={1.8} />}
+              {preferences.notificationMode === 'notification' && <Bell size={20} strokeWidth={2} />}
+              {preferences.notificationMode === 'alarm' && <AlarmClock size={20} strokeWidth={2} />}
+              {preferences.notificationMode === 'both' && <Bell size={20} strokeWidth={2} className="text-green-400" />}
+            </span>
+            <span className="text-[10px] font-semibold tracking-wide">
+              {preferences.notificationMode === 'off' && 'Alerts'}
+              {preferences.notificationMode === 'notification' && 'Notif'}
+              {preferences.notificationMode === 'alarm' && 'Alarm'}
+              {preferences.notificationMode === 'both' && 'Both'}
             </span>
           </button>
 

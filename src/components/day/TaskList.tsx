@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckSquare, Square, ChevronDown, ChevronUp, ListChecks } from 'lucide-react';
+import { CheckSquare, Square, ChevronDown, ChevronUp, ListChecks, StickyNote } from 'lucide-react';
 import type { TimetableTask, DayRecord } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { formatHour, cn } from '../../lib/utils';
@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function TaskList({ tasks, dateStr, record }: Props) {
-  const { toggleTaskCompletion } = useAppStore();
+  const { toggleTaskCompletion, updateTaskNotes } = useAppStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const sorted = [...tasks].sort((a, b) => a.startHour - b.startHour);
@@ -41,8 +41,11 @@ export function TaskList({ tasks, dateStr, record }: Props) {
 
       <div className="space-y-2">
         {sorted.map(task => {
-          const isCompleted = record.tasks.find(t => t.taskId === task.id)?.completed ?? false;
+          const dayTaskRecord = record.tasks.find(t => t.taskId === task.id);
+          const isCompleted = dayTaskRecord?.completed ?? false;
+          const taskNotes = dayTaskRecord?.notes ?? '';
           const isExpanded = expandedId === task.id;
+          const hasNotes = !!taskNotes.trim();
 
           return (
             <div
@@ -77,9 +80,15 @@ export function TaskList({ tasks, dateStr, record }: Props) {
 
                 {/* Title & time */}
                 <div className="flex-1 min-w-0">
-                  <p className={cn('text-sm font-medium text-primary truncate', isCompleted && 'line-through text-muted')}>
-                    {task.title}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <p className={cn('text-sm font-medium text-primary truncate', isCompleted && 'line-through text-muted')}>
+                      {task.title}
+                    </p>
+                    {/* Note indicator */}
+                    {hasNotes && !isExpanded && (
+                      <StickyNote size={12} className="text-violet-400 shrink-0" />
+                    )}
+                  </div>
                   <p className="text-xs text-muted mt-0.5">
                     {formatHour(task.startHour)} – {formatHour(task.endHour)}
                   </p>
@@ -99,10 +108,30 @@ export function TaskList({ tasks, dateStr, record }: Props) {
                 </button>
               </div>
 
-              {/* Expanded description */}
-              {isExpanded && task.description && (
-                <div className="px-4 pb-3 pt-1 border-t border-base">
-                  <p className="text-xs text-secondary">{task.description}</p>
+              {/* Expanded section: description + per-task notes */}
+              {isExpanded && (
+                <div className="px-4 pb-3 pt-1 border-t border-base space-y-3">
+                  {/* Static task description from timetable */}
+                  {task.description && (
+                    <p className="text-xs text-secondary">{task.description}</p>
+                  )}
+
+                  {/* Per-day task notes */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <StickyNote size={12} className="text-violet-400" />
+                      <label className="text-xs font-semibold text-muted uppercase tracking-wider">
+                        Notes for today
+                      </label>
+                    </div>
+                    <textarea
+                      className="textarea-base min-h-[60px] text-xs"
+                      placeholder="Add notes for this task…"
+                      value={taskNotes}
+                      onClick={e => e.stopPropagation()}
+                      onChange={e => updateTaskNotes(dateStr, task.id, e.target.value)}
+                    />
+                  </div>
                 </div>
               )}
             </div>

@@ -9,8 +9,10 @@ import { ThemeProvider } from './components/ThemeProvider';
 import { LoginPage }   from './components/auth/LoginPage';
 import { PendingPage } from './components/auth/PendingPage';
 import { DeniedPage }  from './components/auth/DeniedPage';
+import { AlarmOverlay } from './components/shared/AlarmOverlay';
 import { useAuthStore } from './store/useAuthStore';
 import { useSync }     from './hooks/useSync';
+import { useNotifications } from './hooks/useNotifications';
 
 function DayRoute() {
   const [params] = useSearchParams();
@@ -21,6 +23,7 @@ function DayRoute() {
 /** Main app layout — only rendered when user is approved. */
 function AppLayout() {
   useSync(); // debounced cloud sync
+  const { alarm, dismissAlarm } = useNotifications();
   return (
     <div className="flex h-screen overflow-hidden bg-primary-surface">
       <Sidebar />
@@ -32,6 +35,11 @@ function AppLayout() {
         </Routes>
       </main>
       <BottomNav />
+
+      {/* Alarm overlay — renders above everything when an alarm fires */}
+      {alarm.active && alarm.task && (
+        <AlarmOverlay task={alarm.task} onDismiss={dismissAlarm} />
+      )}
     </div>
   );
 }
