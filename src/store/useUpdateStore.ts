@@ -31,19 +31,24 @@ export function compareSemver(v1: string, v2: string): number {
 }
 
 export async function getCurrentAppVersion(): Promise<string> {
+  const bundledVer = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.1';
+
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const isNative = !!(window as any).Capacitor?.isNativePlatform?.();
     if (isNative) {
       const { App } = await import('@capacitor/app');
       const info = await App.getInfo();
-      if (info.version) return info.version;
+      // If native info.version is defined and at least as high as bundledVer, use it
+      if (info.version && compareSemver(info.version, bundledVer) >= 0) {
+        return info.version;
+      }
     }
   } catch (err) {
     console.debug('[update] Could not get native app info:', err);
   }
 
-  return typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0';
+  return bundledVer;
 }
 
 interface UpdateStore {
@@ -125,8 +130,12 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
 
       set({ updateInfo: info });
 
+      // Only auto-prompt APK downloads on native devices. On desktop/web, auto-prompting APK install makes no sense.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const isNative = !!(window as any).Capacitor?.isNativePlatform?.();
+
       const dismissedVer = localStorage.getItem(DISMISSED_KEY);
-      if (isNewer && (manual || dismissedVer !== latestVer)) {
+      if (isNewer && (manual || (isNative && dismissedVer !== latestVer))) {
         set({ showModal: true });
       } else if (manual) {
         set({ showModal: true });
