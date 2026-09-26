@@ -27,10 +27,12 @@ export async function initDb(): Promise<void> {
     );
 
     CREATE TABLE IF NOT EXISTS user_data (
-      user_id     TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-      timetable   TEXT NOT NULL DEFAULT '[]',
-      preferences TEXT NOT NULL DEFAULT '{}',
-      updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
+      user_id          TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      timetable        TEXT NOT NULL DEFAULT '[]',
+      preferences      TEXT NOT NULL DEFAULT '{}',
+      weekly_goals     TEXT NOT NULL DEFAULT '{}',
+      high_level_goals TEXT NOT NULL DEFAULT '[]',
+      updated_at       INTEGER NOT NULL DEFAULT (unixepoch())
     );
 
     CREATE TABLE IF NOT EXISTS day_records (
@@ -44,6 +46,20 @@ export async function initDb(): Promise<void> {
       PRIMARY KEY (user_id, date)
     );
   `);
+
+  // Ensure weekly_goals and high_level_goals columns exist
+  try {
+    const tableInfo = await db.execute("PRAGMA table_info(user_data)");
+    const cols = new Set(tableInfo.rows.map(r => r.name));
+    if (!cols.has('weekly_goals')) {
+      await db.execute("ALTER TABLE user_data ADD COLUMN weekly_goals TEXT NOT NULL DEFAULT '{}'");
+    }
+    if (!cols.has('high_level_goals')) {
+      await db.execute("ALTER TABLE user_data ADD COLUMN high_level_goals TEXT NOT NULL DEFAULT '[]'");
+    }
+  } catch (colErr) {
+    console.warn('[migration] Notice on column check:', colErr);
+  }
 
   // Migration from old schema if needed
   try {

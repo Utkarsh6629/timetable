@@ -13,7 +13,7 @@ router.get('/user-data', async (req: AuthRequest, res: Response) => {
   }
 
   const rowRes = await db.execute({
-    sql:  'SELECT timetable, preferences FROM user_data WHERE user_id = ?',
+    sql:  'SELECT timetable, preferences, weekly_goals, high_level_goals FROM user_data WHERE user_id = ?',
     args: [req.userId!],
   });
 
@@ -35,13 +35,15 @@ router.get('/user-data', async (req: AuthRequest, res: Response) => {
   }
 
   if (!rowRes.rows.length) {
-    return res.json({ timetable: null, dayRecords, preferences: {} });
+    return res.json({ timetable: null, dayRecords, weeklyGoals: {}, highLevelGoals: [], preferences: {} });
   }
   const row = rowRes.rows[0];
   res.json({
-    timetable:   JSON.parse(row.timetable as string),
+    timetable:      JSON.parse(row.timetable as string),
     dayRecords,
-    preferences: JSON.parse(row.preferences as string),
+    weeklyGoals:    row.weekly_goals ? JSON.parse(row.weekly_goals as string) : {},
+    highLevelGoals: row.high_level_goals ? JSON.parse(row.high_level_goals as string) : [],
+    preferences:    JSON.parse(row.preferences as string),
   });
 });
 
@@ -52,38 +54,51 @@ router.put('/user-data', async (req: AuthRequest, res: Response) => {
     return res.status(403).json({ error: 'Access not approved' });
   }
 
-  const { timetable, preferences } = req.body as {
-    timetable?: unknown[]; preferences?: Record<string, unknown>;
+  const { timetable, preferences, weeklyGoals, highLevelGoals } = req.body as {
+    timetable?: unknown[];
+    preferences?: Record<string, unknown>;
+    weeklyGoals?: Record<string, unknown>;
+    highLevelGoals?: unknown[];
   };
 
   // Fetch current values to keep them if not provided
   const oldRowRes = await db.execute({
-    sql: 'SELECT timetable, preferences FROM user_data WHERE user_id = ?',
+    sql: 'SELECT timetable, preferences, weekly_goals, high_level_goals FROM user_data WHERE user_id = ?',
     args: [req.userId!]
   });
 
   let currentTimetableStr = '[]';
   let currentPreferencesStr = '{}';
+  let currentWeeklyGoalsStr = '{}';
+  let currentHighLevelGoalsStr = '[]';
 
   if (oldRowRes.rows.length) {
-    currentTimetableStr = oldRowRes.rows[0].timetable as string;
-    currentPreferencesStr = oldRowRes.rows[0].preferences as string;
+    currentTimetableStr = (oldRowRes.rows[0].timetable as string) ?? '[]';
+    currentPreferencesStr = (oldRowRes.rows[0].preferences as string) ?? '{}';
+    currentWeeklyGoalsStr = (oldRowRes.rows[0].weekly_goals as string) ?? '{}';
+    currentHighLevelGoalsStr = (oldRowRes.rows[0].high_level_goals as string) ?? '[]';
   }
 
   const finalTimetable = timetable !== undefined ? JSON.stringify(timetable) : currentTimetableStr;
   const finalPreferences = preferences !== undefined ? JSON.stringify(preferences) : currentPreferencesStr;
+  const finalWeeklyGoals = weeklyGoals !== undefined ? JSON.stringify(weeklyGoals) : currentWeeklyGoalsStr;
+  const finalHighLevelGoals = highLevelGoals !== undefined ? JSON.stringify(highLevelGoals) : currentHighLevelGoalsStr;
 
   await db.execute({
-    sql: `INSERT INTO user_data (user_id, timetable, preferences, updated_at)
-          VALUES (?, ?, ?, unixepoch())
+    sql: `INSERT INTO user_data (user_id, timetable, preferences, weekly_goals, high_level_goals, updated_at)
+          VALUES (?, ?, ?, ?, ?, unixepoch())
           ON CONFLICT(user_id) DO UPDATE SET
-            timetable   = excluded.timetable,
-            preferences = excluded.preferences,
-            updated_at  = unixepoch()`,
+            timetable        = excluded.timetable,
+            preferences      = excluded.preferences,
+            weekly_goals     = excluded.weekly_goals,
+            high_level_goals = excluded.high_level_goals,
+            updated_at       = unixepoch()`,
     args: [
       req.userId!,
       finalTimetable,
       finalPreferences,
+      finalWeeklyGoals,
+      finalHighLevelGoals,
     ],
   });
   res.json({ ok: true });

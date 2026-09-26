@@ -31,7 +31,17 @@ A modern, responsive, and interactive personal productivity dashboard designed t
 * **Weekly Metrics:** Shows your completion percentage across the current week.
 * **Smart Insights:** Automatically analyzes your task history to surface completion statistics for recurring tasks.
 
+### 🎯 5. High-Level Goals & North Star Objective
+* **Dedicated High-Level Goals Page:** Establish and track long-term transformations beyond weekly routines.
+* **North Star Hero Focus:** Designate and highlight your #1 primary high-level objective with deadline countdowns, progress metrics, and intrinsic motivation ("The Deep Why").
+* **Milestone Checkpoints & Metrics:** Break big goals into concrete checkpoints with progress tracking and quantitative goals (e.g. revenue, mileage, books).
+* **Main Dashboard Integration:** Prominent North Star banner embedded right above your weekly goals.
+* **On-time Android Background Alarms:** Scheduled via `RTC_WAKEUP` and Android's native `USAGE_ALARM` stream to ring reliably on time even when the app is closed.
+
 ---
+
+## 📜 Changelog
+See [CHANGELOG.md](CHANGELOG.md) for full release notes and version history.
 
 ## 🛠️ Tech Stack
 * **Framework:** React 18 + TypeScript + Vite
@@ -59,11 +69,16 @@ Make sure you have [Node.js](https://nodejs.org/) installed (v18 or higher recom
    npm install
    ```
 
-3. Run the development server:
-   ```bash
-   npm run dev
-   ```
-   Open [http://localhost:5173](http://localhost:5173) in your browser to view the application.
+3. Run the development servers:
+   - **Start the backend server (runs on port 3001):**
+     ```bash
+     npm run server
+     ```
+   - **Start the frontend Vite server (runs on port 5173):**
+     ```bash
+     npm run dev
+     ```
+   Open [http://localhost:5173](http://localhost:5173) in your browser. Vite automatically proxies `/api` and `/auth` calls to `http://localhost:3001`.
 
 ### Production Build
 To create an optimized production build, run:

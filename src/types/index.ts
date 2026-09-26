@@ -40,6 +40,38 @@ export interface WeeklyGoalRecord {
   setOn: string;              // ISO timestamp of creation
 }
 
+// ── High Level Goals ─────────────────────────────────────────────────────────
+
+export type GoalCategory = 'career' | 'learning' | 'fitness' | 'finance' | 'personal' | 'project';
+export type GoalStatus = 'in-progress' | 'achieved' | 'paused';
+
+export interface GoalMilestone {
+  id: string;
+  title: string;
+  completed: boolean;
+  targetDate?: string;
+}
+
+export interface HighLevelGoal {
+  id: string;
+  title: string;
+  description: string;
+  whyMotivation: string;
+  category: GoalCategory;
+  targetDate: string; // yyyy-MM-dd
+  status: GoalStatus;
+  isPrimary: boolean;
+  milestones: GoalMilestone[];
+  metricTarget?: number;
+  metricCurrent?: number;
+  metricUnit?: string;
+  habits?: string[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+}
+
 // ── Preferences & State ──────────────────────────────────────────────────────
 
 export type NotificationMode = 'off' | 'notification' | 'alarm' | 'both';
@@ -60,5 +92,6 @@ export interface AppState {
   timetable: TimetableTask[];
   dayRecords: Record<string, DayRecord>;
   weeklyGoals: Record<string, WeeklyGoalRecord>;
+  highLevelGoals: HighLevelGoal[];
   preferences: UserPreferences;
 }

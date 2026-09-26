@@ -11,11 +11,12 @@ import type { DayRecord } from '../types';
  * the app layout when auth loading is complete.
  */
 export function useSync() {
-  const timetable    = useAppStore(s => s.timetable);
-  const dayRecords   = useAppStore(s => s.dayRecords);
-  const weeklyGoals  = useAppStore(s => s.weeklyGoals);
-  const preferences  = useAppStore(s => s.preferences);
-  const user         = useAuthStore(s => s.user);
+  const timetable      = useAppStore(s => s.timetable);
+  const dayRecords     = useAppStore(s => s.dayRecords);
+  const weeklyGoals    = useAppStore(s => s.weeklyGoals);
+  const highLevelGoals = useAppStore(s => s.highLevelGoals);
+  const preferences    = useAppStore(s => s.preferences);
+  const user           = useAuthStore(s => s.user);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -23,6 +24,7 @@ export function useSync() {
   const lastSyncedTimetable = useRef<string | null>(null);
   const lastSyncedPrefs = useRef<string | null>(null);
   const lastSyncedWeeklyGoals = useRef<string | null>(null);
+  const lastSyncedHighLevelGoals = useRef<string | null>(null);
   const lastSyncedDayRecords = useRef<Record<string, string>>({});
   const isInitialized = useRef(false);
 
@@ -35,6 +37,7 @@ export function useSync() {
       lastSyncedTimetable.current = JSON.stringify(timetable);
       lastSyncedPrefs.current = JSON.stringify(preferences);
       lastSyncedWeeklyGoals.current = JSON.stringify(weeklyGoals);
+      lastSyncedHighLevelGoals.current = JSON.stringify(highLevelGoals);
       
       const initialDayRecords: Record<string, string> = {};
       for (const [date, record] of Object.entries(dayRecords)) {
@@ -48,26 +51,30 @@ export function useSync() {
     if (timerRef.current) clearTimeout(timerRef.current);
     
     timerRef.current = setTimeout(async () => {
-      // 1. Sync Settings (timetable, weeklyGoals & preferences) if changed
+      // 1. Sync Settings (timetable, weeklyGoals, highLevelGoals & preferences) if changed
       const timetableStr = JSON.stringify(timetable);
       const prefsStr = JSON.stringify(preferences);
       const weeklyGoalsStr = JSON.stringify(weeklyGoals);
+      const highLevelGoalsStr = JSON.stringify(highLevelGoals);
 
       const timetableChanged = timetableStr !== lastSyncedTimetable.current;
       const prefsChanged = prefsStr !== lastSyncedPrefs.current;
       const weeklyGoalsChanged = weeklyGoalsStr !== lastSyncedWeeklyGoals.current;
+      const highLevelGoalsChanged = highLevelGoalsStr !== lastSyncedHighLevelGoals.current;
 
-      if (timetableChanged || prefsChanged || weeklyGoalsChanged) {
+      if (timetableChanged || prefsChanged || weeklyGoalsChanged || highLevelGoalsChanged) {
         const payload: Parameters<typeof putUserData>[0] = {};
         if (timetableChanged) payload.timetable = timetable;
         if (prefsChanged) payload.preferences = preferences;
         if (weeklyGoalsChanged) payload.weeklyGoals = weeklyGoals;
+        if (highLevelGoalsChanged) payload.highLevelGoals = highLevelGoals;
 
         try {
           await putUserData(payload);
           lastSyncedTimetable.current = timetableStr;
           lastSyncedPrefs.current = prefsStr;
           lastSyncedWeeklyGoals.current = weeklyGoalsStr;
+          lastSyncedHighLevelGoals.current = highLevelGoalsStr;
         } catch (err) {
           console.warn('[sync] Failed to save settings:', err);
         }
@@ -97,5 +104,5 @@ export function useSync() {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timetable, dayRecords, weeklyGoals, preferences]);
+  }, [timetable, dayRecords, weeklyGoals, highLevelGoals, preferences]);
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { CalendarDays, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Sun, Moon, LogOut, Shield, Bell, BellOff, AlarmClock, RefreshCw } from 'lucide-react';
+import { CalendarDays, LayoutGrid, Calendar, Target, ChevronLeft, ChevronRight, Sun, Moon, LogOut, Shield, Bell, BellOff, AlarmClock, RefreshCw } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useUpdateStore } from '../../store/useUpdateStore';
@@ -10,6 +10,7 @@ import { AlarmSettingsModal } from '../shared/AlarmSettingsModal';
 
 const NAV = [
   { to: '/', label: 'Day', icon: CalendarDays, end: true },
+  { to: '/goals', label: 'Goals', icon: Target, end: false },
   { to: '/timetable', label: 'Timetable', icon: LayoutGrid, end: false },
   { to: '/month', label: 'Month', icon: Calendar, end: false },
 ];

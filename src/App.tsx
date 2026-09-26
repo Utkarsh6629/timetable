@@ -5,6 +5,7 @@ import { BottomNav }   from './components/layout/BottomNav';
 import { DayView }     from './components/day/DayView';
 import { TimetablePage } from './components/timetable/TimetablePage';
 import { MonthView }   from './components/month/MonthView';
+import { GoalsPage }   from './components/goals/GoalsPage';
 import { ThemeProvider } from './components/ThemeProvider';
 import { LoginPage }   from './components/auth/LoginPage';
 import { PendingPage } from './components/auth/PendingPage';
@@ -47,6 +48,7 @@ function AppLayout() {
           <Route path="/"          element={<DayRoute />} />
           <Route path="/timetable" element={<TimetablePage />} />
           <Route path="/month"     element={<MonthView />} />
+          <Route path="/goals"     element={<GoalsPage />} />
         </Routes>
       </main>
       <BottomNav />

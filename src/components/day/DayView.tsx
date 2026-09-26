@@ -8,6 +8,7 @@ import { TaskList } from './TaskList';
 import { DailyJournal } from './DailyJournal';
 import { StatsBar } from './StatsBar';
 import { WeeklyGoals } from './WeeklyGoals';
+import { NorthStarBanner } from './NorthStarBanner';
 
 interface Props {
   dateKey?: string;
@@ -78,6 +79,9 @@ export function DayView({ dateKey }: Props) {
         {isToday(currentDate) && (
           <TimelineHeader tasks={tasks} dateStr={dateStr} />
         )}
+
+        {/* High-Level North Star Goal */}
+        <NorthStarBanner />
 
         {/* Weekly Goals */}
         <WeeklyGoals currentDate={currentDate} />

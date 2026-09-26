@@ -1,6 +1,16 @@
 import { create } from 'zustand';
 import { format, getDay, startOfWeek } from 'date-fns';
-import type { TimetableTask, DayRecord, UserPreferences, WeeklyGoalRecord, WeeklyGoalItem, NotificationMode, AlarmTone } from '../types';
+import type {
+  TimetableTask,
+  DayRecord,
+  UserPreferences,
+  WeeklyGoalRecord,
+  WeeklyGoalItem,
+  NotificationMode,
+  AlarmTone,
+  HighLevelGoal,
+  GoalMilestone,
+} from '../types';
 import type { UserDataPayload } from '../lib/api';
 import { generateId } from '../lib/utils';
 
@@ -47,10 +57,11 @@ export const DEFAULT_PREFS: UserPreferences = {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Store {
-  timetable:    TimetableTask[];
-  dayRecords:   Record<string, DayRecord>;
-  weeklyGoals:  Record<string, WeeklyGoalRecord>;
-  preferences:  UserPreferences;
+  timetable:      TimetableTask[];
+  dayRecords:     Record<string, DayRecord>;
+  weeklyGoals:    Record<string, WeeklyGoalRecord>;
+  highLevelGoals: HighLevelGoal[];
+  preferences:    UserPreferences;
 
   // Timetable actions
   addTask:       (task: TimetableTask) => void;
@@ -73,6 +84,17 @@ interface Store {
   updateWeeklyGoalItem:  (weekKey: string, goalId: string, text: string) => void;
   updateWeeklyGoalNotes: (weekKey: string, notes: string) => void;
   initWeeklyGoals:       (weekKey: string) => void;
+
+  // High-Level Goals actions
+  addHighLevelGoal:        (goal: Omit<HighLevelGoal, 'id' | 'createdAt' | 'updatedAt'>) => string;
+  updateHighLevelGoal:     (id: string, updates: Partial<HighLevelGoal>) => void;
+  deleteHighLevelGoal:     (id: string) => void;
+  setPrimaryHighLevelGoal: (id: string) => void;
+  toggleMilestone:         (goalId: string, milestoneId: string) => void;
+  addMilestone:            (goalId: string, title: string, targetDate?: string) => void;
+  removeMilestone:         (goalId: string, milestoneId: string) => void;
+  updateMilestone:         (goalId: string, milestoneId: string, title: string) => void;
+  getPrimaryHighLevelGoal: () => HighLevelGoal | null;
 
   // Preference actions
   setTheme:               (theme: UserPreferences['theme']) => void;
@@ -123,14 +145,35 @@ function buildEmptyWeeklyGoals(weekKey: string): WeeklyGoalRecord {
   };
 }
 
+const HLG_STORAGE_KEY = 'lp_high_level_goals';
+
+function loadCachedGoals(): HighLevelGoal[] {
+  try {
+    const raw = localStorage.getItem(HLG_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // fallback
+  }
+  return [];
+}
+
+function persistCachedGoals(goals: HighLevelGoal[]) {
+  try {
+    localStorage.setItem(HLG_STORAGE_KEY, JSON.stringify(goals));
+  } catch {
+    // fallback
+  }
+}
+
 // ── Store ─────────────────────────────────────────────────────────────────────
 // Note: No `persist` middleware — data is persisted to the server via useSync.
 
 export const useAppStore = create<Store>((set, get) => ({
-  timetable:   DEFAULT_TIMETABLE,
-  dayRecords:  {},
-  weeklyGoals: {},
-  preferences: DEFAULT_PREFS,
+  timetable:      DEFAULT_TIMETABLE,
+  dayRecords:     {},
+  weeklyGoals:    {},
+  highLevelGoals: loadCachedGoals(),
+  preferences:    DEFAULT_PREFS,
 
   // ── Timetable ──────────────────────────────────────────────────────────────
   addTask: (task) =>
@@ -257,6 +300,162 @@ export const useAppStore = create<Store>((set, get) => ({
     });
   },
 
+  // ── High-Level Goals ────────────────────────────────────────────────────────
+  addHighLevelGoal: (goalData) => {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const newGoal: HighLevelGoal = {
+      ...goalData,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    set(s => {
+      let updatedGoals = [...s.highLevelGoals];
+      if (goalData.isPrimary) {
+        updatedGoals = updatedGoals.map(g => ({ ...g, isPrimary: false }));
+      } else if (updatedGoals.length === 0) {
+        newGoal.isPrimary = true;
+      }
+      const nextGoals = [newGoal, ...updatedGoals];
+      persistCachedGoals(nextGoals);
+      return { highLevelGoals: nextGoals };
+    });
+    return id;
+  },
+
+  updateHighLevelGoal: (id, updates) => {
+    set(s => {
+      const now = new Date().toISOString();
+      let goals = s.highLevelGoals;
+      if (updates.isPrimary) {
+        goals = goals.map(g => (g.id === id ? g : { ...g, isPrimary: false }));
+      }
+      const nextGoals = goals.map(g => {
+        if (g.id !== id) return g;
+        const updated: HighLevelGoal = { ...g, ...updates, updatedAt: now };
+        if (updates.status === 'achieved' && !g.completedAt) {
+          updated.completedAt = now;
+        } else if (updates.status && updates.status !== 'achieved') {
+          updated.completedAt = undefined;
+        }
+        return updated;
+      });
+      persistCachedGoals(nextGoals);
+      return { highLevelGoals: nextGoals };
+    });
+  },
+
+  deleteHighLevelGoal: (id) => {
+    set(s => {
+      const target = s.highLevelGoals.find(g => g.id === id);
+      const remaining = s.highLevelGoals.filter(g => g.id !== id);
+      if (target?.isPrimary && remaining.length > 0) {
+        const nextActive = remaining.find(g => g.status !== 'achieved') ?? remaining[0];
+        nextActive.isPrimary = true;
+      }
+      persistCachedGoals(remaining);
+      return { highLevelGoals: remaining };
+    });
+  },
+
+  setPrimaryHighLevelGoal: (id) => {
+    set(s => {
+      const nextGoals = s.highLevelGoals.map(g => ({
+        ...g,
+        isPrimary: g.id === id,
+      }));
+      persistCachedGoals(nextGoals);
+      return { highLevelGoals: nextGoals };
+    });
+  },
+
+  toggleMilestone: (goalId, milestoneId) => {
+    set(s => {
+      const now = new Date().toISOString();
+      const nextGoals = s.highLevelGoals.map(g => {
+        if (g.id !== goalId) return g;
+        const updatedMilestones = g.milestones.map(m =>
+          m.id === milestoneId ? { ...m, completed: !m.completed } : m
+        );
+        const allDone = updatedMilestones.length > 0 && updatedMilestones.every(m => m.completed);
+        return {
+          ...g,
+          milestones: updatedMilestones,
+          updatedAt: now,
+          status: allDone ? ('achieved' as const) : g.status === 'achieved' ? ('in-progress' as const) : g.status,
+          completedAt: allDone ? (g.completedAt ?? now) : undefined,
+        };
+      });
+      persistCachedGoals(nextGoals);
+      return { highLevelGoals: nextGoals };
+    });
+  },
+
+  addMilestone: (goalId, title, targetDate) => {
+    set(s => {
+      const now = new Date().toISOString();
+      const nextGoals = s.highLevelGoals.map(g => {
+        if (g.id !== goalId) return g;
+        const newMilestone: GoalMilestone = {
+          id: generateId(),
+          title,
+          completed: false,
+          targetDate,
+        };
+        return {
+          ...g,
+          milestones: [...g.milestones, newMilestone],
+          updatedAt: now,
+        };
+      });
+      persistCachedGoals(nextGoals);
+      return { highLevelGoals: nextGoals };
+    });
+  },
+
+  removeMilestone: (goalId, milestoneId) => {
+    set(s => {
+      const now = new Date().toISOString();
+      const nextGoals = s.highLevelGoals.map(g => {
+        if (g.id !== goalId) return g;
+        return {
+          ...g,
+          milestones: g.milestones.filter(m => m.id !== milestoneId),
+          updatedAt: now,
+        };
+      });
+      persistCachedGoals(nextGoals);
+      return { highLevelGoals: nextGoals };
+    });
+  },
+
+  updateMilestone: (goalId, milestoneId, title) => {
+    set(s => {
+      const now = new Date().toISOString();
+      const nextGoals = s.highLevelGoals.map(g => {
+        if (g.id !== goalId) return g;
+        return {
+          ...g,
+          milestones: g.milestones.map(m => (m.id === milestoneId ? { ...m, title } : m)),
+          updatedAt: now,
+        };
+      });
+      persistCachedGoals(nextGoals);
+      return { highLevelGoals: nextGoals };
+    });
+  },
+
+  getPrimaryHighLevelGoal: () => {
+    const { highLevelGoals } = get();
+    return highLevelGoals.find(g => g.isPrimary && g.status !== 'achieved')
+      ?? highLevelGoals.find(g => g.isPrimary)
+      ?? highLevelGoals.find(g => g.status === 'in-progress')
+      ?? highLevelGoals[0]
+      ?? null;
+  },
+
   // ── Preferences ────────────────────────────────────────────────────────────
   setTheme: (theme) =>
     set(s => ({ preferences: { ...s.preferences, theme } })),
@@ -342,18 +541,32 @@ export const useAppStore = create<Store>((set, get) => ({
   // ── Cloud sync ─────────────────────────────────────────────────────────────
   loadFromRemote: (data) => {
     const timetable = data.timetable;
+    const remoteGoals = data.highLevelGoals;
+    let goals = get().highLevelGoals;
+    if (remoteGoals && Array.isArray(remoteGoals) && remoteGoals.length > 0) {
+      goals = remoteGoals;
+      persistCachedGoals(goals);
+    } else if (goals.length === 0) {
+      goals = loadCachedGoals();
+    }
+
     set({
-      timetable:   timetable == null ? DEFAULT_TIMETABLE : timetable,
-      dayRecords:  data.dayRecords ?? {},
-      weeklyGoals: data.weeklyGoals ?? {},
-      preferences: { ...DEFAULT_PREFS, ...(data.preferences ?? {}) },
+      timetable:      timetable == null ? DEFAULT_TIMETABLE : timetable,
+      dayRecords:     data.dayRecords ?? {},
+      weeklyGoals:    data.weeklyGoals ?? {},
+      highLevelGoals: goals,
+      preferences:    { ...DEFAULT_PREFS, ...(data.preferences ?? {}) },
     });
   },
 
-  resetStore: () => set({
-    timetable:   DEFAULT_TIMETABLE,
-    dayRecords:  {},
-    weeklyGoals: {},
-    preferences: DEFAULT_PREFS,
-  }),
+  resetStore: () => {
+    persistCachedGoals([]);
+    set({
+      timetable:      DEFAULT_TIMETABLE,
+      dayRecords:     {},
+      weeklyGoals:    {},
+      highLevelGoals: [],
+      preferences:    DEFAULT_PREFS,
+    });
+  },
 }));

@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react';
-import { X, Bell, BellOff, AlarmClock, Volume2, VolumeX, Play, Square, Info } from 'lucide-react';
+import { X, Bell, BellOff, AlarmClock, Volume2, VolumeX, Play, Square, Info, ShieldCheck, Zap, ExternalLink } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { ALARM_TONE_OPTIONS, previewAlarmSound, stopAlarmSound } from '../../lib/alarmAudio';
+import {
+  isNative,
+  getAndroidAlarmStatus,
+  requestBatteryOptimizationExemption,
+  requestExactAlarmPermission,
+} from '../../lib/alarmScheduler';
 import { cn } from '../../lib/utils';
 import type { NotificationMode, AlarmTone } from '../../types';
 
@@ -13,11 +19,23 @@ interface Props {
 export function AlarmSettingsModal({ isOpen, onClose }: Props) {
   const { preferences, setNotificationMode, setAlarmTone, setAlarmVolume, setNotifyMinutesBefore } = useAppStore();
   const [playingTone, setPlayingTone] = useState<AlarmTone | null>(null);
+  const [androidStatus, setAndroidStatus] = useState<{
+    canScheduleExactAlarms: boolean;
+    isIgnoringBatteryOptimizations: boolean;
+  } | null>(null);
 
   const currentMode = preferences.notificationMode;
   const currentTone = preferences.alarmTone ?? 'radar';
   const currentVolume = preferences.alarmVolume ?? 100;
   const currentMinutes = preferences.notifyMinutesBefore ?? 0;
+
+  useEffect(() => {
+    if (isOpen && isNative()) {
+      void getAndroidAlarmStatus().then(status => {
+        if (status) setAndroidStatus(status);
+      });
+    }
+  }, [isOpen]);
 
   // Stop sound if modal closes or unmounts
   useEffect(() => {
@@ -264,6 +282,70 @@ export function AlarmSettingsModal({ isOpen, onClose }: Props) {
               </div>
             </div>
           )}
+
+          {/* 4. On-Time Background Delivery & Alarm Volume Guidance */}
+          <div className="rounded-2xl bg-secondary-surface/80 border border-base p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Zap size={16} className="text-amber-400" />
+              <h4 className="text-xs font-bold text-primary uppercase tracking-wide">
+                On-Time Background Delivery (Swiggy / Clock Style)
+              </h4>
+            </div>
+
+            <div className="space-y-2 text-xs text-secondary leading-relaxed">
+              <p>
+                <strong className="text-primary">⏰ Alarm Volume vs. Media Volume:</strong> Background alarms use Android&apos;s native <span className="text-violet-400 font-semibold">Alarm Stream</span> (same as your system Alarm Clock). Even if your media or ringtone volume is silent, the alarm will ring at your device&apos;s <em>Alarm Volume</em>.
+              </p>
+              <p>
+                <strong className="text-primary">⚡ Wakes Device on Locked Screen:</strong> Alarms are scheduled with Android <span className="font-mono text-[11px] text-violet-400">RTC_WAKEUP</span> so your tasks alert you on the exact second, even when the phone screen is off or the app is closed.
+              </p>
+            </div>
+
+            {/* Android Native Optimization Controls */}
+            {isNative() && (
+              <div className="pt-2 border-t border-base/80 space-y-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-muted flex items-center gap-1.5">
+                    <ShieldCheck size={14} className={androidStatus?.isIgnoringBatteryOptimizations ? 'text-green-400' : 'text-amber-400'} />
+                    Battery Optimization (Doze Mode):
+                  </span>
+                  <span className={cn('font-semibold', androidStatus?.isIgnoringBatteryOptimizations ? 'text-green-400' : 'text-amber-400')}>
+                    {androidStatus?.isIgnoringBatteryOptimizations ? 'Unrestricted (Active)' : 'Needs Exemption'}
+                  </span>
+                </div>
+
+                {!androidStatus?.isIgnoringBatteryOptimizations && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await requestBatteryOptimizationExemption();
+                      setTimeout(async () => {
+                        const s = await getAndroidAlarmStatus();
+                        if (s) setAndroidStatus(s);
+                      }, 1000);
+                    }}
+                    className="btn-secondary w-full text-xs py-2 px-3 justify-center gap-1.5 text-amber-300 border-amber-500/30 hover:bg-amber-500/10"
+                  >
+                    <ExternalLink size={13} />
+                    <span>Allow Background Alarms (Disable Battery Optimization)</span>
+                  </button>
+                )}
+
+                {androidStatus?.canScheduleExactAlarms === false && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await requestExactAlarmPermission();
+                    }}
+                    className="btn-secondary w-full text-xs py-2 px-3 justify-center gap-1.5 text-violet-300 border-violet-500/30"
+                  >
+                    <ExternalLink size={13} />
+                    <span>Enable Exact Alarms in System Settings</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer */}

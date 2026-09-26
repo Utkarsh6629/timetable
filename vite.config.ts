@@ -15,9 +15,9 @@ export default defineConfig(({command}) => ({
   },
   server: {
     proxy: {
-      // In development, proxy /api and /auth to the Express server
-      '/api':  { target: 'http://localhost:3001', changeOrigin: true },
-      '/auth': { target: 'http://localhost:3001', changeOrigin: true },
+      // In development, proxy /api and /auth to the Express server (127.0.0.1 avoids IPv6 ::1 ECONNREFUSED)
+      '/api':  { target: 'http://127.0.0.1:3001', changeOrigin: true },
+      '/auth': { target: 'http://127.0.0.1:3001', changeOrigin: true },
     },
   },
 }))

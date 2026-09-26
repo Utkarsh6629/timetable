@@ -1,7 +1,7 @@
 // Typed API client — all requests use relative URLs so Vite proxy
 // handles dev routing and Nginx handles production routing.
 
-import type { TimetableTask, DayRecord, UserPreferences, WeeklyGoalRecord } from '../types';
+import type { TimetableTask, DayRecord, UserPreferences, WeeklyGoalRecord, HighLevelGoal } from '../types';
 
 export interface User {
   id: string;
@@ -16,12 +16,14 @@ export interface UserDataPayload {
   timetable: TimetableTask[] | null;
   dayRecords: Record<string, DayRecord>;
   weeklyGoals: Record<string, WeeklyGoalRecord>;
+  highLevelGoals?: HighLevelGoal[];
   preferences: UserPreferences;
 }
 
 export interface UpdateUserDataPayload {
   timetable?: TimetableTask[] | null;
   weeklyGoals?: Record<string, WeeklyGoalRecord>;
+  highLevelGoals?: HighLevelGoal[];
   preferences?: UserPreferences;
 }
 

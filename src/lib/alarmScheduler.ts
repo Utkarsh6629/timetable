@@ -1,10 +1,11 @@
 import type { TimetableTask, UserPreferences } from '../types';
 import { formatHour } from './utils';
 
-const CHANNEL_ID = 'life-planner-task-alarms';
+export const ALARM_CHANNEL_ID = 'life-planner-task-alarms-v2';
+export const NOTIF_CHANNEL_ID = 'life-planner-task-notifications';
 
 // Check if running on native Capacitor platform
-function isNative(): boolean {
+export function isNative(): boolean {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return !!(window as any).Capacitor?.isNativePlatform?.();
@@ -15,23 +16,37 @@ function isNative(): boolean {
 
 let channelCreated = false;
 
-async function ensureChannel() {
+async function ensureChannels() {
   if (!isNative() || channelCreated) return;
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications');
+
+    // 1. Loud Alarm Channel (Heads-up banner + loud alarm sound)
     await LocalNotifications.createChannel({
-      id: CHANNEL_ID,
-      name: 'Life Planner Alarms',
-      description: 'High-priority task alarms that sound even when app is closed',
+      id: ALARM_CHANNEL_ID,
+      name: 'Task Alarms (Loud)',
+      description: 'Loud task alarms that ring at Alarm Volume even when app is closed',
       importance: 5, // MAX importance (heads-up banner + loud sound)
-      visibility: 1, // PUBLIC
+      visibility: 1, // PUBLIC (lockscreen)
       vibration: true,
       lights: true,
       lightColor: '#7c3aed',
+      sound: 'alarm',
     });
+
+    // 2. Standard Notification Channel
+    await LocalNotifications.createChannel({
+      id: NOTIF_CHANNEL_ID,
+      name: 'Task Notifications',
+      description: 'Timetable task reminder notification banners',
+      importance: 4, // HIGH importance
+      visibility: 1,
+      vibration: true,
+    });
+
     channelCreated = true;
   } catch (err) {
-    console.warn('[alarmScheduler] Could not create notification channel:', err);
+    console.warn('[alarmScheduler] Could not create notification channels:', err);
   }
 }
 
@@ -49,7 +64,8 @@ function hashToInteger(str: string): number {
 
 /**
  * Schedule native background notifications / alarms for the next 7 days.
- * This runs via Android AlarmManager so alarms ring even if the app is closed.
+ * Uses Android AlarmManager setExactAndAllowWhileIdle so alarms ring even if the
+ * app is closed, device is locked, or screen is off (Swiggy / Clock app behavior).
  */
 export async function syncNativeAlarms(
   timetable: TimetableTask[],
@@ -81,7 +97,7 @@ export async function syncNativeAlarms(
       }
     }
 
-    await ensureChannel();
+    await ensureChannels();
 
     // Cancel existing scheduled notifications to avoid duplicates
     const pending = await LocalNotifications.getPending();
@@ -131,7 +147,7 @@ export async function syncNativeAlarms(
           0
         );
 
-        // Only schedule if in future
+        // Only schedule if in future (with 10s buffer)
         if (scheduleDate.getTime() > now.getTime() + 10_000) {
           const dateStr = scheduleDate.toISOString().slice(0, 10);
           const notifId = hashToInteger(`${task.id}_${dateStr}`);
@@ -144,10 +160,15 @@ export async function syncNativeAlarms(
             id: notifId,
             title: hasAlarm ? `⏰ ALARM: ${task.title}` : `🔔 ${task.title}`,
             body: minutesText,
-            schedule: { at: scheduleDate },
-            channelId: CHANNEL_ID,
+            schedule: {
+              at: scheduleDate,
+              allowWhileIdle: true, // Crucial: triggers AlarmManager.setExactAndAllowWhileIdle / RTC_WAKEUP
+            },
+            channelId: hasAlarm ? ALARM_CHANNEL_ID : NOTIF_CHANNEL_ID,
             smallIcon: 'ic_launcher',
-            sound: hasAlarm ? 'res://raw/alarm' : undefined,
+            sound: hasAlarm ? 'alarm' : undefined,
+            ongoing: false,
+            autoCancel: true,
             extra: {
               taskId: task.id,
               isAlarm: hasAlarm,
@@ -162,9 +183,61 @@ export async function syncNativeAlarms(
       // Capacitor limits batch scheduling to 64 on some Android versions, take earliest 60
       const batch = notificationsToSchedule.slice(0, 60);
       await LocalNotifications.schedule({ notifications: batch });
-      console.log(`[alarmScheduler] Scheduled ${batch.length} native alarms/notifications`);
+      console.log(`[alarmScheduler] Scheduled ${batch.length} native alarms/notifications with exact wakeup`);
     }
   } catch (err) {
     console.warn('[alarmScheduler] Error scheduling native alarms:', err);
+  }
+}
+
+/**
+ * Checks battery optimization and exact alarm status on Android via native AlarmHelper plugin.
+ */
+export async function getAndroidAlarmStatus(): Promise<{
+  canScheduleExactAlarms: boolean;
+  isIgnoringBatteryOptimizations: boolean;
+} | null> {
+  if (!isNative()) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { Plugins } = (window as any).Capacitor ?? {};
+    if (Plugins?.AlarmHelper) {
+      return await Plugins.AlarmHelper.checkExactAlarmStatus();
+    }
+  } catch (err) {
+    console.warn('[alarmScheduler] Could not query AlarmHelper:', err);
+  }
+  return null;
+}
+
+/**
+ * Prompts user to exempt app from Android Battery Optimization (Doze Mode).
+ */
+export async function requestBatteryOptimizationExemption(): Promise<void> {
+  if (!isNative()) return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { Plugins } = (window as any).Capacitor ?? {};
+    if (Plugins?.AlarmHelper) {
+      await Plugins.AlarmHelper.requestBatteryOptimizationExemption();
+    }
+  } catch (err) {
+    console.warn('[alarmScheduler] Could not request battery exemption:', err);
+  }
+}
+
+/**
+ * Prompts user to grant SCHEDULE_EXACT_ALARM on Android 12+.
+ */
+export async function requestExactAlarmPermission(): Promise<void> {
+  if (!isNative()) return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { Plugins } = (window as any).Capacitor ?? {};
+    if (Plugins?.AlarmHelper) {
+      await Plugins.AlarmHelper.requestExactAlarmPermission();
+    }
+  } catch (err) {
+    console.warn('[alarmScheduler] Could not request exact alarm permission:', err);
   }
 }
