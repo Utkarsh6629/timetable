@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.1] - 2026-09-26
+
+### 🌟 Added
+- **Delete High-Level Goals**:
+  - Ability to delete a created high-level goal directly from the Goal Edit Modal (`GoalModal`).
+  - Added delete option to the North Star Hero card action bar with automatic fallback to the next available goal.
+  - Interactive deletion confirmation prompts to protect against accidental loss.
+
+---
+
 ## [1.1.0] - 2026-09-26
 
 ### 🌟 Added
