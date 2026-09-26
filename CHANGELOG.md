@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Native Alarm Audio Asset**: Added high-penetration multi-pulse alarm tone `alarm.wav` to `res/raw/` and `public/sounds/`.
   - **Android Battery Optimization Exemption Bridge**: Added `AlarmHelperPlugin` to detect Doze mode throttling and provide a 1-click exemption button in `AlarmSettingsModal`.
 
+### 🔧 Fixed
+- **In-App APK Update Failure ("App not installed")**: Added persistent repository signing keystore (`signing.keystore`) and configured `signingConfigs` in `android/app/build.gradle` to ensure every GitHub Actions build is signed with the identical cryptographic key. Future APK updates now install seamlessly over existing installations without having to uninstall the app.
+
 ### 🔄 Changed
 - Migrated server SQLite schema in `user_data` to automatically include and synchronize `high_level_goals` and `weekly_goals`.
 - Added `/goals` navigation item with `Target` icon to desktop `Sidebar` and mobile `BottomNav`.
