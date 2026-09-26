@@ -27,6 +27,7 @@ export function NorthStarHero({ goal, onEdit }: Props) {
     addMilestone,
     removeMilestone,
     updateHighLevelGoal,
+    deleteHighLevelGoal,
   } = useAppStore();
 
   const [newMilestoneText, setNewMilestoneText] = useState('');
@@ -114,10 +115,22 @@ export function NorthStarHero({ goal, onEdit }: Props) {
 
           <button
             onClick={() => onEdit(goal)}
-            className="btn-ghost p-1.5 rounded-xl"
+            className="btn-ghost p-1.5 rounded-xl text-muted hover:text-primary"
             title="Edit North Star Goal"
           >
             <Edit3 size={15} />
+          </button>
+
+          <button
+            onClick={() => {
+              if (window.confirm(`Delete North Star Goal "${goal.title}"?`)) {
+                deleteHighLevelGoal(goal.id);
+              }
+            }}
+            className="btn-ghost p-1.5 rounded-xl text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            title="Delete Goal"
+          >
+            <Trash2 size={15} />
           </button>
         </div>
       </div>

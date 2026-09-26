@@ -23,7 +23,7 @@ interface Props {
 }
 
 export function GoalModal({ isOpen, onClose, goalToEdit }: Props) {
-  const { addHighLevelGoal, updateHighLevelGoal } = useAppStore();
+  const { addHighLevelGoal, updateHighLevelGoal, deleteHighLevelGoal } = useAppStore();
 
   const isEditing = Boolean(goalToEdit);
 
@@ -555,21 +555,42 @@ export function GoalModal({ isOpen, onClose, goalToEdit }: Props) {
           </div>
 
           {/* Modal Footer */}
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-base">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-secondary text-xs py-2 px-4"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn-primary text-xs py-2 px-5 shadow-lg shadow-violet-500/20"
-            >
-              <Check size={14} />
-              {isEditing ? 'Save Changes' : 'Create Goal'}
-            </button>
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-base">
+            {isEditing && goalToEdit ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm(`Are you sure you want to delete "${goalToEdit.title}"?`)) {
+                    deleteHighLevelGoal(goalToEdit.id);
+                    onClose();
+                  }
+                }}
+                className="btn-ghost text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3 py-2 rounded-xl flex items-center gap-1.5 transition-colors"
+                title="Delete Goal"
+              >
+                <Trash2 size={14} />
+                <span>Delete Goal</span>
+              </button>
+            ) : (
+              <div />
+            )}
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn-secondary text-xs py-2 px-4"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn-primary text-xs py-2 px-5 shadow-lg shadow-violet-500/20"
+              >
+                <Check size={14} />
+                {isEditing ? 'Save Changes' : 'Create Goal'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
